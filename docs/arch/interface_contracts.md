@@ -25,7 +25,7 @@ public class Strategy {
     private String version;
     
     @Column(nullable = false)
-    private String code; // 策略代码片段
+    private String dockerImageId; // Docker镜像包ID
     
     @Column(nullable = false)
     private Boolean enabled;
@@ -50,6 +50,31 @@ public interface StrategyService {
     List<Strategy> getAllStrategies();
     List<Strategy> getStrategiesByLanguage(String language);
     Strategy rollbackVersion(Long id, String targetVersion);
+}
+
+/**
+ * Docker镜像管理接口
+ */
+public interface DockerImageService {
+    String pullImage(String imageName, String tag);
+    void removeImage(String imageId);
+    DockerImageInfo getImageInfo(String imageId);
+    List<DockerImageInfo> listImages();
+    String buildImage(String dockerfilePath, String buildContext, String imageName);
+}
+
+/**
+ * Docker镜像信息
+ */
+public class DockerImageInfo {
+    private String id;
+    private String repository;
+    private String tag;
+    private Long size;
+    private LocalDateTime created;
+    private Map<String, String> labels;
+    
+    // Getters and Setters
 }
 ```
 
@@ -271,7 +296,7 @@ public class Container {
     private ContainerStatus status;
     
     @Column
-    private String image;
+    private String image; // Docker镜像ID
     
     @Column
     private Map<String, String> environment; // 环境变量JSON
@@ -316,7 +341,7 @@ public interface ContainerService {
  * Docker客户端接口
  */
 public interface DockerClient {
-    String createContainer(String image, Map<String, String> env, Map<String, String> ports);
+    String createContainer(String imageId, Map<String, String> env, Map<String, String> ports);
     void startContainer(String containerId);
     void stopContainer(String containerId);
     void removeContainer(String containerId);
@@ -324,6 +349,35 @@ public interface DockerClient {
     List<ContainerInfo> listContainers();
     String getContainerLogs(String containerId);
     ContainerStats getContainerStats(String containerId);
+    String pullImage(String imageName, String tag);
+    void removeImage(String imageId);
+    DockerImageInfo getImageInfo(String imageId);
+}
+
+/**
+ * 容器信息
+ */
+public class ContainerInfo {
+    private String id;
+    private String image;
+    private String status;
+    private Map<String, String> ports;
+    private Map<String, String> labels;
+    private LocalDateTime created;
+    
+    // Getters and Setters
+}
+
+/**
+ * 容器统计信息
+ */
+public class ContainerStats {
+    private String containerId;
+    private Double cpuUsage;
+    private Double memoryUsage;
+    private Long timestamp;
+    
+    // Getters and Setters
 }
 ```
 
@@ -418,7 +472,7 @@ public class StrategyDTO {
     private String name;
     private String language;
     private String version;
-    private String code;
+    private String dockerImageId; // Docker镜像包ID
     private Boolean enabled;
     
     // Getters and Setters
@@ -430,6 +484,15 @@ public class StrategyQueryDTO {
     private Boolean enabled;
     private Integer page;
     private Integer size;
+    
+    // Getters and Setters
+}
+
+public class DockerImageDTO {
+    private String imageName;
+    private String tag;
+    private String dockerfilePath;
+    private String buildContext;
     
     // Getters and Setters
 }
@@ -503,9 +566,19 @@ public class TaskExecutionDTO {
 ```java
 public class ContainerDTO {
     private Long taskId;
-    private String image;
+    private String image; // Docker镜像ID
     private Map<String, String> environment;
     private Map<String, String> ports;
+    
+    // Getters and Setters
+}
+
+public class ContainerCreateDTO {
+    private String imageId;
+    private Map<String, String> environment;
+    private Map<String, String> ports;
+    private Map<String, String> volumes;
+    private Map<String, String> labels;
     
     // Getters and Setters
 }
@@ -523,6 +596,19 @@ public class StrategyException extends RuntimeException {
     }
     
     public StrategyException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+/**
+ * Docker镜像异常
+ */
+public class DockerImageException extends RuntimeException {
+    public DockerImageException(String message) {
+        super(message);
+    }
+    
+    public DockerImageException(String message, Throwable cause) {
         super(message, cause);
     }
 }
@@ -622,11 +708,31 @@ public enum ContainerEventType {
 }
 
 /**
+ * Docker镜像事件
+ */
+public class DockerImageEvent {
+    private String imageId;
+    private DockerImageEventType eventType;
+    private LocalDateTime timestamp;
+    private Map<String, Object> data;
+    
+    // Getters and Setters
+}
+
+/**
+ * Docker镜像事件类型
+ */
+public enum DockerImageEventType {
+    IMAGE_PULLED, IMAGE_BUILT, IMAGE_REMOVED, IMAGE_TAGGED
+}
+
+/**
  * 事件发布接口
  */
 public interface EventPublisher {
     void publishTaskEvent(TaskEvent event);
     void publishContainerEvent(ContainerEvent event);
+    void publishDockerImageEvent(DockerImageEvent event);
 }
 
 /**
@@ -635,5 +741,6 @@ public interface EventPublisher {
 public interface EventListener {
     void onTaskEvent(TaskEvent event);
     void onContainerEvent(ContainerEvent event);
+    void onDockerImageEvent(DockerImageEvent event);
 }
 ```
