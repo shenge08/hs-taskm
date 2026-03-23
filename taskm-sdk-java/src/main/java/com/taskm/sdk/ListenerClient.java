@@ -2,7 +2,6 @@ package com.taskm.sdk;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.taskm.sdk.exception.*;
-import com.taskm.sdk.model.ApiResponse;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -11,10 +10,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Client for calling listener HTTP APIs.
+ * Client for sending event notifications to listeners.
  *
- * <p>This client provides methods to notify listeners about task lifecycle events.
- * It automatically reads the endpoint and task_id from environment variables if not provided.
+ * <p>This client provides simple methods to notify listeners about task lifecycle events.
+ * It uses fire-and-forget mode - events are sent without waiting for responses.
+ *
+ * <p>The listener container runs an HTTP server that receives these events.
  */
 public class ListenerClient {
 
@@ -89,49 +90,51 @@ public class ListenerClient {
     /**
      * Notify the listener that the task has started.
      *
-     * @return map containing the listener's response
+     * This sends an event notification without waiting for response.
+     *
      * @throws ListenerConnectionException if connection to listener fails
      * @throws ListenerTimeoutException if request times out
-     * @throws ListenerApiException if listener returns an error response
      */
-    public Map<String, Object> onTaskStarted() {
-        return sendEvent("task-started", new HashMap<>());
+    public void onTaskStarted() {
+        sendEvent("task-started", new HashMap<>());
     }
 
     /**
      * Notify the listener that the task has completed successfully.
      *
+     * This sends an event notification without waiting for response.
+     *
      * @param result task execution result
-     * @return map containing the listener's response
      * @throws ListenerConnectionException if connection to listener fails
      * @throws ListenerTimeoutException if request times out
-     * @throws ListenerApiException if listener returns an error response
      */
-    public Map<String, Object> onTaskCompleted(Map<String, Object> result) {
+    public void onTaskCompleted(Map<String, Object> result) {
         Map<String, Object> extraData = new HashMap<>();
         extraData.put("result", result);
-        return sendEvent("task-completed", extraData);
+        sendEvent("task-completed", extraData);
     }
 
     /**
      * Notify the listener that the task has failed.
      *
+     * This sends an event notification without waiting for response.
+     *
      * @param error error message describing the failure
-     * @return map containing the listener's response
      * @throws ListenerConnectionException if connection to listener fails
      * @throws ListenerTimeoutException if request times out
-     * @throws ListenerApiException if listener returns an error response
      */
-    public Map<String, Object> onTaskFailed(String error) {
+    public void onTaskFailed(String error) {
         Map<String, Object> extraData = new HashMap<>();
         extraData.put("error", error);
-        return sendEvent("task-failed", extraData);
+        sendEvent("task-failed", extraData);
     }
 
     /**
      * Internal method to send an event to the listener.
+     *
+     * This uses fire-and-forget mode - sends the event and immediately returns.
      */
-    private Map<String, Object> sendEvent(String eventType, Map<String, Object> extraData) {
+    private void sendEvent(String eventType, Map<String, Object> extraData) {
         String url = endpoint + "/" + eventType;
 
         // Build request payload
@@ -141,17 +144,8 @@ public class ListenerClient {
         payload.putAll(extraData);
 
         try {
-            String responseBody = httpClient.post(url, payload);
-            ApiResponse response = objectMapper.readValue(responseBody, ApiResponse.class);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", response.getStatus());
-            if (response.getMessage() != null) {
-                result.put("message", response.getMessage());
-            }
-
-            return result;
-
+            // Fire and forget - don't wait for response
+            httpClient.post(url, payload);
         } catch (IOException e) {
             if (e.getCause() instanceof java.util.concurrent.TimeoutException) {
                 throw new ListenerTimeoutException(
@@ -160,14 +154,8 @@ public class ListenerClient {
                     timeoutSeconds
                 );
             }
-
-            // Check if it's an API exception (has HTTP status code)
-            if (e instanceof ListenerApiException) {
-                throw (ListenerApiException) e;
-            }
-
             throw new ListenerConnectionException(
-                "Failed to connect to listener: " + e.getMessage(),
+                "Failed to send event: " + e.getMessage(),
                 url,
                 e
             );
@@ -188,7 +176,7 @@ public class ListenerClient {
                 .build();
         }
 
-        String post(String url, Object body) throws IOException {
+        void post(String url, Object body) throws IOException {
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 String jsonBody = mapper.writeValueAsString(body);
@@ -200,21 +188,8 @@ public class ListenerClient {
                     .POST(java.net.http.HttpRequest.BodyPublishers.ofString(jsonBody))
                     .build();
 
-                java.net.http.HttpResponse<String> response = client.send(
-                    request,
-                    java.net.http.HttpResponse.BodyHandlers.ofString()
-                );
-
-                if (response.statusCode() >= 400) {
-                    throw new ListenerApiException(
-                        "HTTP " + response.statusCode() + ": " + response.body(),
-                        response.statusCode(),
-                        response.body(),
-                        url
-                    );
-                }
-
-                return response.body();
+                // Discard response - fire and forget
+                client.send(request, java.net.http.HttpResponse.BodyHandlers.discarding());
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
