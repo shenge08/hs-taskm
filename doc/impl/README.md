@@ -276,6 +276,7 @@ HS-TASKM 开发团队
 ## 相关文档
 
 - [项目主 README](../README.md)
+- [部署文档](../deployment.md)
 - [API 文档](../api/README.md)
 - [数据库设计](../database/README.md)
 
