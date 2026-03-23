@@ -50,6 +50,12 @@ public class DataPlugin implements Serializable {
     private String code;
 
     /**
+     * Docker image name for this plugin.
+     * Format: "repository/image:tag" e.g., "myrepo/stock-plugin:latest"
+     */
+    private String imageName;
+
+    /**
      * Configuration parameters (JSON).
      * Format: [{"name":"symbol","type":"string","default":"AAPL","required":true}]
      */
