@@ -160,8 +160,10 @@ public class CodeSnippetInjectorImpl implements CodeSnippetInjector {
 
         // Volume mounts (log directory)
         Map<String, String> volumes = new HashMap<>();
+        // Mount task-specific log directory for strategy logs
         volumes.put(getLogDirectoryPath(taskId), "/app/logs");
-        volumes.put("/var/log/tasks", "/var/log/tasks");  // Mount for plugin/listener logs
+        // Mount shared log directory for all task logs (needed by plugin/listener SDK)
+        volumes.put("/var/log/taskm", "/var/log/taskm");
         config.setVolumeMounts(volumes);
 
         logger.info("Prepared injection config for task {}", taskId);
@@ -315,6 +317,9 @@ public class CodeSnippetInjectorImpl implements CodeSnippetInjector {
 
         // Task ID
         env.put("TASK_ID", String.valueOf(taskId));
+
+        // Log type (for log routing)
+        env.put("LOG_TYPE", "strategy");
 
         // Log path
         env.put("LOG_PATH", config.getLogPath());

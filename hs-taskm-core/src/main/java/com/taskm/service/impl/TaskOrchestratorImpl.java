@@ -82,14 +82,18 @@ public class TaskOrchestratorImpl implements TaskOrchestrator {
                 );
             }
 
-            // Step 3: Prepare injection configuration
+            // Step 3: Ensure log directory exists
+            logger.info("Ensuring log directory exists for task {}", taskId);
+            codeSnippetInjector.ensureLogDirectory(taskId);
+
+            // Step 4: Prepare injection configuration
             logger.info("Preparing injection config for task {}", taskId);
             InjectionConfig injectionConfig = codeSnippetInjector.prepareInjection(taskId);
 
-            // Step 4: Create container configuration
+            // Step 5: Create container configuration
             ContainerConfig containerConfig = buildContainerConfig(injectionConfig, task);
 
-            // Step 5: Create container
+            // Step 6: Create container
             logger.info("Creating container for task {}", taskId);
             String containerId = containerLifecycleManager.createContainer(
                 defaultDockerImage,
@@ -97,17 +101,17 @@ public class TaskOrchestratorImpl implements TaskOrchestrator {
                 containerConfig
             );
 
-            // Step 6: Start container
+            // Step 7: Start container
             logger.info("Starting container {} for task {}", containerId, taskId);
             containerLifecycleManager.startContainer(containerId);
 
-            // Step 7: Update task status to RUNNING
+            // Step 8: Update task status to RUNNING
             task.setStatus("RUNNING");
             task.setStartedAt(LocalDateTime.now());
             task.setContainerId(containerId);
             taskMapper.updateById(task);
 
-            // Step 8: Start resource monitoring
+            // Step 9: Start resource monitoring
             logger.info("Starting resource monitoring for container {}", containerId);
             resourceMonitor.startMonitoring(containerId, taskId, monitoringIntervalSeconds);
 
@@ -229,9 +233,10 @@ public class TaskOrchestratorImpl implements TaskOrchestrator {
 
         // Volume binds (log directories)
         String taskLogDir = Paths.get("./logs", "task-" + task.getId()).toString();
+        String taskmLogDir = Paths.get("./logs", "taskm", "tasks", "task-" + task.getId()).toString();
 
         config.setBinds(java.util.List.of(
-            "/var/log/tasks:/var/log/tasks:rw",
+            taskmLogDir + ":/var/log/taskm/tasks/task_" + task.getId() + ":rw",
             taskLogDir + ":/app/logs:rw"
         ));
 

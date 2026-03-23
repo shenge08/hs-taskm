@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: hs-taskm-api-test
+  datasource:
+    url: jdbc:postgresql://172.16.90.113:5432/postgres
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  sql:
+    init:
+      mode: never
+
+# MyBatis-Plus configuration
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl

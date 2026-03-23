@@ -99,10 +99,11 @@ public class ListenerContainerManagerImpl implements ListenerContainerManager {
             CreateContainerResponse response = dockerClient.createContainerCmd(listener.getImageName())
                     .withName(containerName)
                     .withEnv("INSTANCES_CONFIG=" + instancesConfigJson)
+                    .withEnv("LOG_TYPE=listener")
                     .withExposedPorts(exposedPort)
                     .withHostConfig(com.github.dockerjava.api.model.HostConfig.newHostConfig()
                             .withPortBindings(bindings)
-                            .withBinds(Bind.parse("/var/log/tasks:/var/log/tasks:rw"))
+                            .withBinds(Bind.parse("/var/log/taskm:/var/log/taskm:rw"))
                             .withRestartPolicy(RestartPolicy.onFailureRestart(3))
                     )
                     .exec();

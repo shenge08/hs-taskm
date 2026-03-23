@@ -31,11 +31,19 @@
         <docker-java.version>3.3.6</docker-java.version>
         <picocli.version>4.7.6</picocli.version>
         <testcontainers.version>1.19.7</testcontainers.version>
+        <flyway.version>10.10.0</flyway.version>
+
+        <!-- Docker configuration -->
+        <docker.image.prefix>hs-taskm</docker.image.prefix>
     </properties>
 
     <modules>
         <module>hs-taskm-common</module>
-        <module>hs-taskm-parent</module>
+        <module>hs-taskm-core</module>
+        <module>hs-taskm-dao</module>
+        <module>hs-taskm-service</module>
+        <module>hs-taskm-api</module>
+        <module>hs-taskm-cli</module>
     </modules>
 
     <dependencyManagement>
@@ -69,6 +77,19 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
+            <!-- Flyway -->
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-core</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-database-postgresql</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -78,6 +99,20 @@
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
+                </plugin>
+
+                <!-- Docker Maven Plugin -->
+                <plugin>
+                    <groupId>com.spotify</groupId>
+                    <artifactId>dockerfile-maven-plugin</artifactId>
+                    <version>1.4.13</version>
+                    <configuration>
+                        <repository>${docker.image.prefix}/${project.artifactId}</repository>
+                        <tag>${project.version}</tag>
+                        <buildArgs>
+                            <JAR_FILE>target/${project.build.finalName}.jar</JAR_FILE>
+                        </buildArgs>
+                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>

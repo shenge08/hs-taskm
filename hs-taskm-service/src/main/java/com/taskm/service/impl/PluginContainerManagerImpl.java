@@ -99,10 +99,11 @@ public class PluginContainerManagerImpl implements PluginContainerManager {
             CreateContainerResponse response = dockerClient.createContainerCmd(plugin.getImageName())
                     .withName(containerName)
                     .withEnv("INSTANCES_CONFIG=" + instancesConfigJson)
+                    .withEnv("LOG_TYPE=plugin")
                     .withExposedPorts(exposedPort)
                     .withHostConfig(com.github.dockerjava.api.model.HostConfig.newHostConfig()
                             .withPortBindings(bindings)
-                            .withBinds(Bind.parse("/var/log/tasks:/var/log/tasks:rw"))
+                            .withBinds(Bind.parse("/var/log/taskm:/var/log/taskm:rw"))
                             .withRestartPolicy(RestartPolicy.onFailureRestart(3))
                     )
                     .exec();
