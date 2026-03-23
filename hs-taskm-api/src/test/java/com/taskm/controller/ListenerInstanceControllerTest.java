@@ -49,15 +49,16 @@ class ListenerInstanceControllerTest {
         testListener = new Listener();
         testListener.setName("webhook-listener");
         testListener.setDescription("Webhook listener for events");
-        testListener.setListenerType("webhook");
+        testListener.setEventType("TASK_COMPLETED");
         testListener.setLanguage("javascript");
         testListener.setCode("function handle(event) { console.log(event); }");
+        testListener.setImageName("node:18");
 
         Map<String, Object> params = new HashMap<>();
         params.put("parameters", java.util.List.of(
             Map.of("name", "url", "type", "string", "default", "https://example.com", "required", true)
         ));
-        testListener.setConfigParameters(params);
+        testListener.setParameters(params);
 
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("author", "Jane Doe");

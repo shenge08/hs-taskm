@@ -5,41 +5,37 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for LogService.
  */
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class LogServiceTest {
-
-    @Mock
-    private LogRouter logRouter;
 
     private LogService logService;
 
     private Path tempLogFile;
+    private Path tempTaskDir;
     private Long testTaskId = 1L;
 
     @BeforeEach
     void setUp() throws IOException {
-        logService = new LogServiceImpl(logRouter);
+        logService = new LogServiceImpl();
 
-        // Create temporary log file
-        tempLogFile = Files.createTempFile("test-task-" + testTaskId, ".log");
+        // Create temporary task directory
+        tempTaskDir = Files.createTempDirectory("task-" + testTaskId + "_");
+
+        // Create temporary log file for strategy type
+        tempLogFile = tempTaskDir.resolve("strategy.log");
+        Files.createFile(tempLogFile);
 
         // Write test log content
         String logContent = """
@@ -52,22 +48,30 @@ class LogServiceTest {
 
         Files.writeString(tempLogFile, logContent);
 
-        // Configure mock router
-        when(logRouter.getLogPath(testTaskId)).thenReturn(tempLogFile.toString());
+        // Set log directory path to temp directory
+        System.setProperty("logs.base_dir", tempTaskDir.getParent().toString());
     }
 
     @AfterEach
     void tearDown() throws IOException {
-        // Clean up temp file
-        if (tempLogFile != null && Files.exists(tempLogFile)) {
-            Files.delete(tempLogFile);
+        // Clean up temp directory
+        if (tempTaskDir != null && Files.exists(tempTaskDir)) {
+            Files.walk(tempTaskDir)
+                .sorted((a, b) -> b.compareTo(a))  // Reverse order to delete files before directories
+                .forEach(path -> {
+                    try {
+                        Files.delete(path);
+                    } catch (IOException e) {
+                        // Ignore cleanup errors
+                    }
+                });
         }
     }
 
     @Test
     void testGetTaskLogs_shouldReturnLogLinesWithOffsetAndLimit() {
         // When
-        List<String> logs = logService.getTaskLogs(testTaskId, 1, 2);
+        List<String> logs = logService.getTaskLogs(testTaskId, "strategy", 1, 2);
 
         // Then
         assertEquals(2, logs.size());
@@ -78,7 +82,7 @@ class LogServiceTest {
     @Test
     void testGetTaskLogs_shouldReturnAllLinesWhenNoLimit() {
         // When
-        List<String> logs = logService.getTaskLogs(testTaskId, 0, 100);
+        List<String> logs = logService.getTaskLogs(testTaskId, "strategy", 0, 100);
 
         // Then
         assertEquals(5, logs.size());
@@ -88,12 +92,8 @@ class LogServiceTest {
 
     @Test
     void testGetTaskLogs_shouldReturnErrorMessageWhenFileNotFound() {
-        // Given
-        Long nonExistentTaskId = 999L;
-        when(logRouter.getLogPath(nonExistentTaskId)).thenReturn("/non/existent/path.log");
-
         // When
-        List<String> logs = logService.getTaskLogs(nonExistentTaskId, 0, 10);
+        List<String> logs = logService.getTaskLogs(999L, "strategy", 0, 10);
 
         // Then
         assertEquals(1, logs.size());
@@ -103,7 +103,7 @@ class LogServiceTest {
     @Test
     void testGetLogTail_shouldReturnLastNLines() {
         // When
-        List<String> tail = logService.getLogTail(testTaskId, 2);
+        List<String> tail = logService.getLogTail(testTaskId, "strategy", 2);
 
         // Then
         assertEquals(2, tail.size());
@@ -114,7 +114,7 @@ class LogServiceTest {
     @Test
     void testGetLogTail_shouldReturnAllLinesWhenRequestExceedsFile() {
         // When
-        List<String> tail = logService.getLogTail(testTaskId, 100);
+        List<String> tail = logService.getLogTail(testTaskId, "strategy", 100);
 
         // Then
         assertEquals(5, tail.size());
@@ -123,12 +123,8 @@ class LogServiceTest {
 
     @Test
     void testGetLogTail_shouldReturnErrorMessageWhenFileNotFound() {
-        // Given
-        Long nonExistentTaskId = 999L;
-        when(logRouter.getLogPath(nonExistentTaskId)).thenReturn("/non/existent/path.log");
-
         // When
-        List<String> tail = logService.getLogTail(nonExistentTaskId, 10);
+        List<String> tail = logService.getLogTail(999L, "strategy", 10);
 
         // Then
         assertEquals(1, tail.size());
@@ -138,7 +134,7 @@ class LogServiceTest {
     @Test
     void testSearchLogs_shouldReturnMatchingLines() {
         // When
-        List<String> results = logService.searchLogs(testTaskId, "ERROR", 10);
+        List<String> results = logService.searchLogs(testTaskId, "strategy", "ERROR", 10);
 
         // Then
         assertEquals(1, results.size());
@@ -148,7 +144,7 @@ class LogServiceTest {
     @Test
     void testSearchLogs_shouldReturnEmptyListWhenNoMatches() {
         // When
-        List<String> results = logService.searchLogs(testTaskId, "NONEXISTENT", 10);
+        List<String> results = logService.searchLogs(testTaskId, "strategy", "NONEXISTENT", 10);
 
         // Then
         assertTrue(results.isEmpty());
@@ -157,7 +153,7 @@ class LogServiceTest {
     @Test
     void testSearchLogs_shouldRespectLimit() {
         // When
-        List<String> results = logService.searchLogs(testTaskId, "INFO", 1);
+        List<String> results = logService.searchLogs(testTaskId, "strategy", "INFO", 1);
 
         // Then
         assertEquals(1, results.size());
@@ -166,12 +162,8 @@ class LogServiceTest {
 
     @Test
     void testSearchLogs_shouldReturnEmptyListWhenFileNotFound() {
-        // Given
-        Long nonExistentTaskId = 999L;
-        when(logRouter.getLogPath(nonExistentTaskId)).thenReturn("/non/existent/path.log");
-
         // When
-        List<String> results = logService.searchLogs(nonExistentTaskId, "keyword", 10);
+        List<String> results = logService.searchLogs(999L, "strategy", "keyword", 10);
 
         // Then
         assertTrue(results.isEmpty());
@@ -180,11 +172,10 @@ class LogServiceTest {
     @Test
     void testGetLogMetadata_shouldReturnCorrectMetadata() {
         // When
-        LogService.LogMetadata metadata = logService.getLogMetadata(testTaskId);
+        LogService.LogMetadata metadata = logService.getLogMetadata(testTaskId, "strategy");
 
         // Then
         assertNotNull(metadata);
-        assertEquals(tempLogFile.toString(), metadata.getFilePath());
         assertTrue(metadata.getFileSize() > 0);
         assertEquals(5, metadata.getLineCount());
         assertNotNull(metadata.getLastModified());
@@ -193,16 +184,11 @@ class LogServiceTest {
 
     @Test
     void testGetLogMetadata_shouldReturnDefaultValuesWhenFileNotFound() {
-        // Given
-        Long nonExistentTaskId = 999L;
-        when(logRouter.getLogPath(nonExistentTaskId)).thenReturn("/non/existent/path.log");
-
         // When
-        LogService.LogMetadata metadata = logService.getLogMetadata(nonExistentTaskId);
+        LogService.LogMetadata metadata = logService.getLogMetadata(999L, "strategy");
 
         // Then
         assertNotNull(metadata);
-        assertEquals("/non/existent/path.log", metadata.getFilePath());
         assertEquals(0, metadata.getFileSize());
         assertEquals(0, metadata.getLineCount());
         assertEquals("N/A", metadata.getLastModified());
@@ -211,18 +197,47 @@ class LogServiceTest {
     @Test
     void testGetTaskLogs_shouldHandleEmptyFile() throws IOException {
         // Given
-        Long emptyTaskId = 2L;
-        Path emptyFile = Files.createTempFile("test-empty", ".log");
-        when(logRouter.getLogPath(emptyTaskId)).thenReturn(emptyFile.toString());
+        Path emptyFile = tempTaskDir.resolve("empty.log");
+        Files.createFile(emptyFile);
 
         try {
+            // Manually create a task directory for task 2
+            Path task2Dir = tempTaskDir.getParent().resolve("task_2");
+            Files.createDirectories(task2Dir);
+            Path task2LogFile = task2Dir.resolve("strategy.log");
+            Files.createFile(task2LogFile);
+
             // When
-            List<String> logs = logService.getTaskLogs(emptyTaskId, 0, 10);
+            List<String> logs = logService.getTaskLogs(2L, "strategy", 0, 10);
 
             // Then
             assertTrue(logs.isEmpty());
         } finally {
-            Files.delete(emptyFile);
+            Files.deleteIfExists(emptyFile);
+        }
+    }
+
+    @Test
+    void testGetAllLogMetadata_shouldReturnAllTypes() throws IOException {
+        // Given - Create plugin and listener log files
+        Path pluginLog = tempTaskDir.resolve("plugin.log");
+        Path listenerLog = tempTaskDir.resolve("listener.log");
+        Files.writeString(pluginLog, "Plugin log\n");
+        Files.writeString(listenerLog, "Listener log\n");
+
+        try {
+            // When
+            var metadataMap = logService.getAllLogMetadata(testTaskId);
+
+            // Then
+            assertNotNull(metadataMap);
+            assertEquals(3, metadataMap.size());
+            assertTrue(metadataMap.containsKey("strategy"));
+            assertTrue(metadataMap.containsKey("plugin"));
+            assertTrue(metadataMap.containsKey("listener"));
+        } finally {
+            Files.deleteIfExists(pluginLog);
+            Files.deleteIfExists(listenerLog);
         }
     }
 }
