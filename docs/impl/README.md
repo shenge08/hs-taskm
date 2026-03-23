@@ -5,7 +5,7 @@
 ## 文档列表
 
 ### Issue #1: 基础设施和项目搭建
-**文件**: [issue-01-infrastructure.md](./issue-01-infrastructure.md)
+**文件**: [issue-01-infrastructure.md](issue-01-infrastructure.md)
 
 **功能**: 多模块 Maven 项目结构、Spring Boot 框架、数据库集成
 
@@ -19,7 +19,7 @@
 ---
 
 ### Issue #2-#4: 查询 API (策略/插件/监听器)
-**文件**: [issue-02-04-query-api.md](./issue-02-04-query-api.md)
+**文件**: [issue-02-04-query-api.md](issue-02-04-query-api.md)
 
 **功能**: 策略、数据插件、监听器的 RESTful CRUD API
 
@@ -38,7 +38,7 @@
 ---
 
 ### Issue #5-#6: 任务创建和容器管理
-**文件**: [issue-05-06-task-container.md](./issue-05-06-task-container.md)
+**文件**: [issue-05-06-task-container.md](issue-05-06-task-container.md)
 
 **功能**: 任务创建验证、Docker 容器生命周期管理
 
@@ -55,7 +55,7 @@
 ---
 
 ### Issue #7-#9: 任务编排（注入/启动/停止）
-**文件**: [issue-07-09-task-orchestration.md](./issue-07-09-task-orchestration.md)
+**文件**: [issue-07-09-task-orchestration.md](issue-07-09-task-orchestration.md)
 
 **功能**: 代码注入、任务启动流程、任务停止流程
 
@@ -73,7 +73,7 @@
 ---
 
 ### Issue #10: Resource Monitor
-**文件**: [issue-10-resource-monitor.md](./issue-10-resource-monitor.md)
+**文件**: [issue-10-resource-monitor.md](issue-10-resource-monitor.md)
 
 **功能**: 容器资源监控（CPU、内存、网络、磁盘I/O）
 
@@ -91,7 +91,7 @@
 ---
 
 ### Issue #11: Log Router 和日志查看
-**文件**: [issue-11-resource-monitor.md](./issue-11-resource-monitor.md) ⚠️ *编号错误，应为 Log Router*
+**文件**: [issue-11-resource-monitor.md](issue-11-resource-monitor.md) ⚠️ *编号错误，应为 Log Router*
 
 **功能**: 任务日志管理和查询（分页/尾部/搜索）
 
@@ -109,7 +109,7 @@
 ---
 
 ### Issue #12: 任务状态查询
-**文件**: [issue-12-log-router.md](./issue-12-log-router.md) ⚠️ *编号错误，应为 Task Query*
+**文件**: [issue-12-log-router.md](issue-12-log-router.md) ⚠️ *编号错误，应为 Task Query*
 
 **功能**: 任务分页查询和统计
 
@@ -127,7 +127,7 @@
 ---
 
 ### Issue #13: CLI 工具 - 查询命令
-**文件**: [issue-13-task-query.md](./issue-13-task-query.md) ⚠️ *编号错误，应为 CLI Tool*
+**文件**: [issue-13-task-query.md](issue-13-task-query.md) ⚠️ *编号错误，应为 CLI Tool*
 
 **功能**: 命令行查询工具
 
@@ -146,7 +146,7 @@
 ---
 
 ### Issue #28: 日志管理实现
-**文件**: [issue-28-log-management.md](./issue-28-log-management.md)
+**文件**: [issue-28-log-management.md](issue-28-log-management.md)
 
 **功能**: 基于容器类型的日志分离管理
 
@@ -166,7 +166,7 @@
 ---
 
 ### Issue #29: 端到端集成测试
-**文件**: [issue-29-integration-tests.md](./issue-29-integration-tests.md)
+**文件**: [issue-29-integration-tests.md](issue-29-integration-tests.md)
 
 **功能**: 完整的端到端集成测试
 
@@ -214,27 +214,27 @@
 ## 按功能分类查阅
 
 ### 核心功能
-- [基础设施](./issue-01-infrastructure.md) - 项目搭建和配置
-- [查询 API](./issue-02-04-query-api.md) - 策略/插件/监听器查询
-- [任务创建](./issue-05-06-task-container.md) - 任务创建和验证
-- [容器管理](./issue-05-06-task-container.md) - Docker 容器操作
+- [基础设施](issue-01-infrastructure.md) - 项目搭建和配置
+- [查询 API](issue-02-04-query-api.md) - 策略/插件/监听器查询
+- [任务创建](issue-05-06-task-container.md) - 任务创建和验证
+- [容器管理](issue-05-06-task-container.md) - Docker 容器操作
 
 ### 编排功能
-- [代码注入](./issue-07-09-task-orchestration.md) - Code Snippet Injector
-- [任务启动](./issue-07-09-task-orchestration.md) - 启动流程编排
-- [任务停止](./issue-07-09-task-orchestration.md) - 停止流程编排
+- [代码注入](issue-07-09-task-orchestration.md) - Code Snippet Injector
+- [任务启动](issue-07-09-task-orchestration.md) - 启动流程编排
+- [任务停止](issue-07-09-task-orchestration.md) - 停止流程编排
 
 ### 监控和日志
-- [资源监控](./issue-10-resource-monitor.md) - Container 资源监控
-- [日志路由](./issue-11-resource-monitor.md) - 日志查询和路由
-- [日志管理](./issue-28-log-management.md) - 基于容器类型的日志分离
+- [资源监控](issue-10-resource-monitor.md) - Container 资源监控
+- [日志路由](issue-11-resource-monitor.md) - 日志查询和路由
+- [日志管理](issue-28-log-management.md) - 基于容器类型的日志分离
 
 ### 测试
-- [端到端集成测试](./issue-29-integration-tests.md) - Testcontainers 集成测试
+- [端到端集成测试](issue-29-integration-tests.md) - Testcontainers 集成测试
 
 ### 查询和统计
-- [任务查询](./issue-12-log-router.md) - 分页查询和统计
-- [CLI 工具](./issue-13-task-query.md) - 命令行查询工具
+- [任务查询](issue-12-log-router.md) - 分页查询和统计
+- [CLI 工具](issue-13-task-query.md) - 命令行查询工具
 
 ## Mermaid 图表索引
 
@@ -247,19 +247,19 @@
 ## 快速导航
 
 ### 开发者
-- 从 [基础设施](./issue-01-infrastructure.md) 开始了解项目结构
-- 查看 [任务编排](./issue-07-09-task-orchestration.md) 理解核心流程
+- 从 [基础设施](issue-01-infrastructure.md) 开始了解项目结构
+- 查看 [任务编排](issue-07-09-task-orchestration.md) 理解核心流程
 - 参考 [监控和日志](#监控和日志) 了解运维功能
 
 ### 测试人员
-- 查看 [查询 API](./issue-02-04-query-api.md) 了解接口
-- 参考 [任务查询](./issue-12-log-router.md) 了解测试场景
-- 查看 [端到端集成测试](./issue-29-integration-tests.md) 了解测试覆盖
+- 查看 [查询 API](issue-02-04-query-api.md) 了解接口
+- 参考 [任务查询](issue-12-log-router.md) 了解测试场景
+- 查看 [端到端集成测试](issue-29-integration-tests.md) 了解测试覆盖
 
 ### 运维人员
-- [资源监控](./issue-10-resource-monitor.md) - 监控配置
-- [日志管理](./issue-11-resource-monitor.md) - 日志查询
-- [CLI 工具](./issue-13-task-query.md) - 命令行操作
+- [资源监控](issue-10-resource-monitor.md) - 监控配置
+- [日志管理](issue-11-resource-monitor.md) - 日志查询
+- [CLI 工具](issue-13-task-query.md) - 命令行操作
 
 ## 文档维护
 

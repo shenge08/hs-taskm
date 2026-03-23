@@ -95,14 +95,11 @@ COMMENT ON COLUMN listener.parameters IS 'Listener parameters in JSON format';
 COMMENT ON COLUMN listener.parameter_defaults IS 'Default values for parameters';
 
 -- Create indexes for better query performance
-CREATE INDEX IF NOT EXISTS idx_task_strategy_id ON task(strategy_id);
-CREATE INDEX IF NOT EXISTS idx_task_status ON task(status);
-CREATE INDEX IF NOT EXISTS idx_task_created_at ON task(created_at);
-
-CREATE INDEX IF NOT EXISTS idx_container_execution_task_id ON container_execution(task_id);
-CREATE INDEX IF NOT EXISTS idx_container_execution_status ON container_execution(status);
-
-CREATE INDEX IF NOT EXISTS idx_data_plugin_type ON data_plugin(plugin_type);
-
-CREATE INDEX IF NOT EXISTS idx_listener_event_type ON listener(event_type);
-CREATE INDEX IF NOT EXISTS idx_listener_enabled ON listener(enabled);
+CREATE INDEX  idx_task_strategy_id ON task(strategy_id);
+CREATE INDEX  idx_task_status ON task(status);
+CREATE INDEX  idx_task_created_at ON task(created_at);
+CREATE INDEX  idx_container_execution_task_id ON container_execution(task_id);
+CREATE INDEX  idx_container_execution_status ON container_execution(status);
+CREATE INDEX  idx_data_plugin_type ON data_plugin(plugin_type);
+CREATE INDEX  idx_listener_event_type ON listener(event_type);
+CREATE INDEX  idx_listener_enabled ON listener(enabled);

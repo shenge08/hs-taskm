@@ -3,10 +3,10 @@ CREATE TABLE IF NOT EXISTS monitor_data (
     id BIGSERIAL PRIMARY KEY,
     container_id VARCHAR(255) NOT NULL,
     task_id BIGINT NOT NULL,
-    cpu_usage DOUBLE,
+    cpu_usage DOUBLE PRECISION,
     memory_usage BIGINT,
     memory_limit BIGINT,
-    memory_usage_percent DOUBLE,
+    memory_usage_percent DOUBLE PRECISION,
     network_rx_bytes BIGINT,
     network_tx_bytes BIGINT,
     block_read_bytes BIGINT,
@@ -16,10 +16,10 @@ CREATE TABLE IF NOT EXISTS monitor_data (
 );
 
 -- Create indexes for better query performance
-CREATE INDEX IF NOT EXISTS idx_monitor_data_container_id ON monitor_data(container_id);
-CREATE INDEX IF NOT EXISTS idx_monitor_data_task_id ON monitor_data(task_id);
-CREATE INDEX IF NOT EXISTS idx_monitor_data_timestamp ON monitor_data(timestamp);
-CREATE INDEX IF NOT EXISTS idx_monitor_data_container_timestamp ON monitor_data(container_id, timestamp);
+CREATE INDEX  idx_monitor_data_container_id ON monitor_data(container_id);
+CREATE INDEX  idx_monitor_data_task_id ON monitor_data(task_id);
+CREATE INDEX  idx_monitor_data_timestamp ON monitor_data(timestamp);
+CREATE INDEX  idx_monitor_data_container_timestamp ON monitor_data(container_id, timestamp);
 
 -- Add comments
 COMMENT ON TABLE monitor_data IS 'Container resource usage metrics';
