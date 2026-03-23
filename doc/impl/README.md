@@ -145,10 +145,41 @@
 
 ---
 
-### Issue #14: CLI 工具 - 任务控制命令
-**文件**: [issue-14-cli-tool.md](./issue-14-cli-tool.md)
+### Issue #28: 日志管理实现
+**文件**: [issue-28-log-management.md](./issue-28-log-management.md)
 
-**功能**: CLI 任务控制命令（未在本次实现范围内）
+**功能**: 基于容器类型的日志分离管理
+
+**核心内容**:
+- 日志目录结构设计（strategy/plugin/listener 分离）
+- LogService 接口扩展（添加 type 参数）
+- LogServiceImpl 重构（移除 LogRouter）
+- 容器环境变量配置（LOG_TYPE）
+- 卷挂载配置更新
+
+**主要类**:
+- `LogService` / `LogServiceImpl` - 日志服务
+- `CodeSnippetInjectorImpl` - 添加 LOG_TYPE 环境变量
+- `PluginContainerManagerImpl` - 插件容器配置
+- `ListenerContainerManagerImpl` - 监听器容器配置
+
+---
+
+### Issue #29: 端到端集成测试
+**文件**: [issue-29-integration-tests.md](./issue-29-integration-tests.md)
+
+**功能**: 完整的端到端集成测试
+
+**核心内容**:
+- Testcontainers 框架集成
+- PostgreSQL 容器自动化管理
+- 插件/监听器实例完整流程测试
+- 日志分离验证
+- 默认实例逻辑测试
+
+**主要测试类**:
+- `EndToEndIntegrationTest` - 端到端集成测试
+- `LogServiceTest` - 日志服务测试（已更新）
 
 ---
 
@@ -176,7 +207,9 @@
 | 监控日志 | #10-11 | 2 | 29.9 KB |
 | 查询统计 | #12 | 1 | 16.2 KB |
 | CLI 工具 | #13-14 | 1 | 25.2 KB |
-| **总计** | **14** | **8** | **117 KB** |
+| 日志管理 | #28 | 1 | 12.5 KB |
+| 集成测试 | #29 | 1 | 14.8 KB |
+| **总计** | **16** | **10** | **144.3 KB** |
 
 ## 按功能分类查阅
 
@@ -193,7 +226,11 @@
 
 ### 监控和日志
 - [资源监控](./issue-10-resource-monitor.md) - Container 资源监控
-- [日志管理](./issue-11-resource-monitor.md) - 日志查询和路由
+- [日志路由](./issue-11-resource-monitor.md) - 日志查询和路由
+- [日志管理](./issue-28-log-management.md) - 基于容器类型的日志分离
+
+### 测试
+- [端到端集成测试](./issue-29-integration-tests.md) - Testcontainers 集成测试
 
 ### 查询和统计
 - [任务查询](./issue-12-log-router.md) - 分页查询和统计
@@ -217,6 +254,7 @@
 ### 测试人员
 - 查看 [查询 API](./issue-02-04-query-api.md) 了解接口
 - 参考 [任务查询](./issue-12-log-router.md) 了解测试场景
+- 查看 [端到端集成测试](./issue-29-integration-tests.md) 了解测试覆盖
 
 ### 运维人员
 - [资源监控](./issue-10-resource-monitor.md) - 监控配置
@@ -230,6 +268,7 @@
 
 ### 更新记录
 - 2024-01-01: 初始版本，创建所有 Issue 文档
+- 2026-03-23: 添加 Issue #28 和 #29 文档
 
 ### 维护者
 HS-TASKM 开发团队
@@ -242,5 +281,5 @@ HS-TASKM 开发团队
 
 ---
 
-**最后更新**: 2024-03-19
-**文档版本**: 1.0
+**最后更新**: 2026-03-23
+**文档版本**: 1.1
