@@ -185,6 +185,16 @@ public class ListenerInstanceServiceImpl implements ListenerInstanceService {
         instanceMapper.updateById(instance);
     }
 
+    @Override
+    public ListenerInstance getDefaultInstance(Long listenerId) {
+        QueryWrapper<ListenerInstance> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("listener_id", listenerId)
+                .eq("is_default", true)
+                .last("LIMIT 1");
+
+        return instanceMapper.selectOne(queryWrapper);
+    }
+
     /**
      * Convert entity to VO.
      */

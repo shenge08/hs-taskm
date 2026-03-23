@@ -3,6 +3,7 @@ package com.taskm.service;
 import com.taskm.dto.CreateListenerInstanceDTO;
 import com.taskm.dto.ListenerInstanceVO;
 import com.taskm.dto.UpdateListenerInstanceDTO;
+import com.taskm.entity.ListenerInstance;
 
 import java.util.List;
 
@@ -59,4 +60,12 @@ public interface ListenerInstanceService {
      * @param instanceId the instance ID
      */
     void setDefaultInstance(Long instanceId);
+
+    /**
+     * Get the default instance for a listener.
+     *
+     * @param listenerId the listener ID
+     * @return the default instance, or null if none exists
+     */
+    ListenerInstance getDefaultInstance(Long listenerId);
 }

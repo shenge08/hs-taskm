@@ -185,6 +185,16 @@ public class PluginInstanceServiceImpl implements PluginInstanceService {
         instanceMapper.updateById(instance);
     }
 
+    @Override
+    public DataPluginInstance getDefaultInstance(Long pluginId) {
+        QueryWrapper<DataPluginInstance> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("plugin_id", pluginId)
+                .eq("is_default", true)
+                .last("LIMIT 1");
+
+        return instanceMapper.selectOne(queryWrapper);
+    }
+
     /**
      * Convert entity to VO.
      */

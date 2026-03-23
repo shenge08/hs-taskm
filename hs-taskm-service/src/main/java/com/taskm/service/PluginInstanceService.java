@@ -60,4 +60,12 @@ public interface PluginInstanceService {
      * @param instanceId the instance ID
      */
     void setDefaultInstance(Long instanceId);
+
+    /**
+     * Get the default instance for a plugin.
+     *
+     * @param pluginId the plugin ID
+     * @return the default instance, or null if none exists
+     */
+    DataPluginInstance getDefaultInstance(Long pluginId);
 }
