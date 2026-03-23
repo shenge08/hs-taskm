@@ -16,9 +16,14 @@ spring:
   sql:
     init:
       mode: never
+  flyway:
+    enabled: false
 
 # MyBatis-Plus configuration
 mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.taskm.entity
+  type-handlers-package: com.taskm.handler
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
