@@ -5,6 +5,10 @@ import com.taskm.dto.ListenerInstanceVO;
 import com.taskm.dto.Result;
 import com.taskm.dto.UpdateListenerInstanceDTO;
 import com.taskm.service.ListenerInstanceService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -12,11 +16,16 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * REST Controller for Listener Instance management.
- * Provides endpoints for CRUD operations on listener instances.
+ * 监听器实例管理 REST Controller
+ *
+ * <p>提供监听器实例的增删改查 REST API 接口
+ *
+ * @author HS-TASKM Team
+ * @version 1.0.0
  */
 @RestController
 @RequestMapping("/api/listeners/{listenerId}/instances")
+@Tag(name = "监听器实例管理", description = "监听器实例的创建、查询、更新和删除接口")
 public class ListenerInstanceController {
 
     private final ListenerInstanceService listenerInstanceService;
@@ -27,13 +36,21 @@ public class ListenerInstanceController {
     }
 
     /**
-     * Create a new listener instance.
+     * 创建监听器实例
      *
-     * @param listenerId the listener ID
-     * @param dto the create DTO
-     * @return the created instance
+     * @param listenerId 监听器 ID
+     * @param dto 创建请求
+     * @return 创建的实例
      */
     @PostMapping
+    @Operation(summary = "创建监听器实例", description = "为指定监听器创建一个新的实例配置")
+    @Parameter(name = "listenerId", description = "监听器 ID", required = true, example = "1")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "创建成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "参数错误"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "监听器不存在"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public Result<ListenerInstanceVO> createInstance(
             @PathVariable Long listenerId,
             @RequestBody @Valid CreateListenerInstanceDTO dto) {
@@ -43,25 +60,39 @@ public class ListenerInstanceController {
     }
 
     /**
-     * Get all instances for a listener.
+     * 获取监听器的所有实例
      *
-     * @param listenerId the listener ID
-     * @return list of instances
+     * @param listenerId 监听器 ID
+     * @return 实例列表
      */
     @GetMapping
+    @Operation(summary = "获取监听器实例列表", description = "获取指定监听器的所有实例配置")
+    @Parameter(name = "listenerId", description = "监听器 ID", required = true, example = "1")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public Result<List<ListenerInstanceVO>> getInstances(@PathVariable Long listenerId) {
         List<ListenerInstanceVO> instances = listenerInstanceService.getInstancesByListenerId(listenerId);
         return Result.success(instances);
     }
 
     /**
-     * Get an instance by ID.
+     * 根据 ID 获取实例详情
      *
-     * @param listenerId the listener ID
-     * @param instanceId the instance ID
-     * @return the instance details
+     * @param listenerId 监听器 ID
+     * @param instanceId 实例 ID
+     * @return 实例详细信息
      */
     @GetMapping("/{instanceId}")
+    @Operation(summary = "获取实例详情", description = "根据实例 ID 查询实例的详细信息")
+    @Parameter(name = "listenerId", description = "监听器 ID", required = true, example = "1")
+    @Parameter(name = "instanceId", description = "实例 ID", required = true, example = "1")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "实例不存在"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public Result<ListenerInstanceVO> getInstance(
             @PathVariable Long listenerId,
             @PathVariable Long instanceId) {
@@ -71,14 +102,23 @@ public class ListenerInstanceController {
     }
 
     /**
-     * Update an instance.
+     * 更新监听器实例
      *
-     * @param listenerId the listener ID
-     * @param instanceId the instance ID
-     * @param dto the update DTO
-     * @return the updated instance
+     * @param listenerId 监听器 ID
+     * @param instanceId 实例 ID
+     * @param dto 更新请求
+     * @return 更新后的实例
      */
     @PutMapping("/{instanceId}")
+    @Operation(summary = "更新监听器实例", description = "更新指定监听器实例的配置信息")
+    @Parameter(name = "listenerId", description = "监听器 ID", required = true, example = "1")
+    @Parameter(name = "instanceId", description = "实例 ID", required = true, example = "1")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "更新成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "参数错误"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "实例不存在"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public Result<ListenerInstanceVO> updateInstance(
             @PathVariable Long listenerId,
             @PathVariable Long instanceId,
@@ -89,13 +129,21 @@ public class ListenerInstanceController {
     }
 
     /**
-     * Delete an instance.
+     * 删除监听器实例
      *
-     * @param listenerId the listener ID
-     * @param instanceId the instance ID
-     * @return success message
+     * @param listenerId 监听器 ID
+     * @param instanceId 实例 ID
+     * @return 成功消息
      */
     @DeleteMapping("/{instanceId}")
+    @Operation(summary = "删除监听器实例", description = "删除指定的监听器实例配置")
+    @Parameter(name = "listenerId", description = "监听器 ID", required = true, example = "1")
+    @Parameter(name = "instanceId", description = "实例 ID", required = true, example = "1")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "删除成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "实例不存在"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public Result<String> deleteInstance(
             @PathVariable Long listenerId,
             @PathVariable Long instanceId) {
@@ -105,13 +153,21 @@ public class ListenerInstanceController {
     }
 
     /**
-     * Set an instance as the default instance.
+     * 设置默认实例
      *
-     * @param listenerId the listener ID
-     * @param instanceId the instance ID
-     * @return success message
+     * @param listenerId 监听器 ID
+     * @param instanceId 实例 ID
+     * @return 成功消息
      */
     @PostMapping("/{instanceId}/setDefault")
+    @Operation(summary = "设置默认实例", description = "将指定实例设置为监听器的默认实例")
+    @Parameter(name = "listenerId", description = "监听器 ID", required = true, example = "1")
+    @Parameter(name = "instanceId", description = "实例 ID", required = true, example = "1")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "设置成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "实例不存在"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public Result<String> setDefaultInstance(
             @PathVariable Long listenerId,
             @PathVariable Long instanceId) {

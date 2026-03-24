@@ -47,6 +47,46 @@ public class Strategy implements Serializable {
     private String code;
 
     /**
+     * Custom Docker image ID for strategy execution.
+     * <p>If specified, this image will be used instead of the default image for the language.
+     * <p>Example: "my-registry.com/strategies/custom-python:1.0.0"
+     */
+    private String dockerImageId;
+
+    /**
+     * Configuration parameter definitions in JSON format
+     * <p>Example:
+     * <pre>
+     * {
+     *   "symbol": {
+     *     "type": "string",
+     *     "description": "Trading symbol",
+     *     "required": true
+     *   },
+     *   "quantity": {
+     *     "type": "number",
+     *     "description": "Trade quantity",
+     *     "default": 100
+     *   }
+     * }
+     * </pre>
+     */
+    private String configParameters;
+
+    /**
+     * Default values for strategy parameters in JSON format
+     * <p>Example:
+     * <pre>
+     * {
+     *   "symbol": "BTCUSDT",
+     *   "quantity": 100,
+     *   "interval": "1h"
+     * }
+     * </pre>
+     */
+    private String parameterDefaults;
+
+    /**
      * Creation timestamp
      */
     @TableField(fill = FieldFill.INSERT)

@@ -18,12 +18,13 @@ pip install -e .
 
 ## Overview
 
-TaskM SDK provides Python clients for:
+TaskM SDK provides Python utilities for:
 
 - **DataPluginClient**: Call data plugin instances to fetch market data
 - **ListenerClient**: Notify listeners about task lifecycle events
+- **Environment**: Convenient environment variable access with type conversion
 
-Both clients automatically read configuration from environment variables and handle errors with detailed exceptions.
+All clients automatically read configuration from environment variables and handle errors with detailed exceptions.
 
 ## Quick Start
 
@@ -135,6 +136,29 @@ if __name__ == "__main__":
     execute_strategy()
 ```
 
+### Using Environment Utility
+
+```python
+from taskm_sdk import Environment
+
+# Get environment variables with type conversion
+task_id = Environment.get_int("TASK_ID", default=0)
+log_type = Environment.get_string("LOG_TYPE", default="strategy")
+enabled = Environment.get_bool("ENABLED", default=False)
+timeout = Environment.get_int("TIMEOUT", default=30)
+
+# Get required variables (raises exception if not set)
+api_key = Environment.get_required("API_KEY")
+
+# Get all variables with prefix
+taskm_vars = Environment.get_all(prefix="TASKM_")
+print(f"TaskM config: {taskm_vars}")
+
+# Check if variable exists
+if Environment.exists("DEBUG"):
+    debug_mode = Environment.get_bool("DEBUG")
+```
+
 ## Configuration
 
 ### Environment Variables
@@ -167,6 +191,77 @@ listener = ListenerClient(
 ```
 
 ## API Reference
+
+### Environment
+
+The `Environment` class provides convenient methods for accessing environment variables with automatic type conversion.
+
+#### `get(name: str, default=None, type=None) -> Optional[T]`
+
+Get an environment variable with optional type conversion and default value.
+
+**Parameters:**
+- `name`: Environment variable name
+- `default`: Default value if not set
+- `type`: Type to convert to (str, int, float, bool)
+
+**Returns:**
+- The converted value or default
+
+**Example:**
+```python
+# Get with type conversion
+task_id = Environment.get("TASK_ID", type=int)  # Returns int or None
+port = Environment.get("PORT", default=8080, type=int)  # Returns int or 8080
+enabled = Environment.get("ENABLED", type=bool)  # Returns bool or None
+```
+
+#### Type-Specific Methods
+
+- `get_string(name, default=None)`: Get as string
+- `get_int(name, default=None)`: Get as integer
+- `get_float(name, default=None)`: Get as float
+- `get_bool(name, default=None)`: Get as boolean
+
+**Boolean Conversion:**
+Accepts: `true/false`, `1/0`, `yes/no`, `on/off` (case-insensitive)
+
+**Example:**
+```python
+task_id = Environment.get_int("TASK_ID", default=0)
+price = Environment.get_float("PRICE", default=0.0)
+enabled = Environment.get_bool("ENABLED", default=False)
+```
+
+#### `get_required(name: str, type=None) -> T`
+
+Get a required environment variable (raises exception if not set).
+
+**Example:**
+```python
+api_key = Environment.get_required("API_KEY")
+port = Environment.get_required("PORT", type=int)
+```
+
+#### `get_all(prefix=None) -> Dict[str, str]`
+
+Get all environment variables, optionally filtered by prefix.
+
+**Example:**
+```python
+all_vars = Environment.get_all()
+taskm_vars = Environment.get_all(prefix="TASKM_")
+```
+
+#### `exists(name: str) -> bool`
+
+Check if an environment variable is set.
+
+**Example:**
+```python
+if Environment.exists("DEBUG"):
+    debug_mode = Environment.get_bool("DEBUG")
+```
 
 ### DataPluginClient
 

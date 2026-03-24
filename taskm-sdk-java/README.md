@@ -20,6 +20,16 @@ Or for Gradle:
 implementation 'com.taskm:sdk:1.0.0'
 ```
 
+## Overview
+
+TaskM SDK provides Java utilities for:
+
+- **DataPluginClient**: Call data plugin instances to fetch market data
+- **ListenerClient**: Notify listeners about task lifecycle events
+- **Environment**: Convenient environment variable access with type conversion
+
+All clients automatically read configuration from environment variables and handle errors with detailed exceptions.
+
 ## Quick Start
 
 ### Using DataPluginClient
@@ -129,6 +139,31 @@ public class StrategyExecutor {
 }
 ```
 
+### Using Environment Utility
+
+```java
+import com.taskm.sdk.Environment;
+import java.util.Map;
+
+// Get environment variables with type conversion
+int taskId = Environment.getInt("TASK_ID", 0);
+String logType = Environment.get("LOG_TYPE", "strategy");
+boolean enabled = Environment.getBoolean("ENABLED", false);
+int timeout = Environment.getInt("TIMEOUT", 30);
+
+// Get required variables (throws exception if not set)
+String apiKey = Environment.getRequired("API_KEY");
+
+// Get all variables with prefix
+Map<String, String> taskmVars = Environment.getAll("TASKM_");
+System.out.println("TaskM config: " + taskmVars);
+
+// Check if variable exists
+if (Environment.exists("DEBUG")) {
+    boolean debugMode = Environment.getBoolean("DEBUG", false);
+}
+```
+
 ## Configuration
 
 ### Environment Variables
@@ -157,6 +192,52 @@ ListenerClient listener = new ListenerClient(
 ```
 
 ## API Reference
+
+### Environment
+
+The `Environment` class provides static utility methods for accessing environment variables with automatic type conversion.
+
+#### Type-Specific Get Methods
+
+```java
+// String
+String value = Environment.get("NAME", "default");
+
+// Integer
+int port = Environment.getInt("PORT", 8080);
+int taskId = Environment.getRequiredInt("TASK_ID");
+
+// Long
+long size = Environment.getLong("SIZE", 1024L);
+
+// Float/Double
+double price = Environment.getDouble("PRICE", 0.0);
+
+// Boolean (accepts: true/false, 1/0, yes/no, on/off)
+boolean enabled = Environment.getBoolean("ENABLED", false);
+```
+
+#### Required Variables
+
+```java
+String apiKey = Environment.getRequired("API_KEY");
+int port = Environment.getRequiredInt("PORT");
+```
+
+#### Query Methods
+
+```java
+Map<String, String> allVars = Environment.getAll();
+Map<String, String> taskmVars = Environment.getAll("TASKM_");
+boolean hasDebug = Environment.exists("DEBUG");
+```
+
+#### List Methods
+
+```java
+List<String> items = Environment.getCommaSeparatedList("ITEMS");
+List<String> hosts = Environment.getList("HOSTS", ":");
+```
 
 ### DataPluginClient
 
