@@ -2,6 +2,7 @@ package com.taskm.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.model.Bind;
@@ -14,19 +15,19 @@ import com.taskm.exception.ListenerNotFoundException;
 import com.taskm.mapper.ListenerInstanceMapper;
 import com.taskm.mapper.ListenerMapper;
 import com.taskm.service.ListenerContainerManager;
+import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.ArrayList;
 
 /**
- * Service implementation for listener container management.
- * Manages Docker container lifecycle for listener containers.
+ * Service implementation for listener instance container management.
+ * Manages Docker container lifecycle for listener instance containers (1:1 mapping).
  */
 @Service
 public class ListenerContainerManagerImpl implements ListenerContainerManager {
@@ -52,23 +53,20 @@ public class ListenerContainerManagerImpl implements ListenerContainerManager {
 
     @Override
     @Transactional
-    public String startListenerContainer(Long listenerId) {
-        logger.info("Starting container for listener {}", listenerId);
+    public String startListenerContainer(Long listenerInstanceId) {
+        logger.info("Starting container for listener instance {}", listenerInstanceId);
 
-        // 1. Verify listener exists
-        Listener listener = listenerMapper.selectById(listenerId);
-        if (listener == null) {
-            throw new ListenerNotFoundException("Listener not found with id: " + listenerId);
+        // 1. Verify listener instance exists
+        ListenerInstance listenerInstance = instanceMapper.selectById(listenerInstanceId);
+        if (listenerInstance == null) {
+            throw new ListenerNotFoundException("Listener instance not found with id: " + listenerInstanceId);
         }
 
-        // 2. Get all instances for this listener
-        List<ListenerInstance> instances = getInstancesByListenerId(listenerId);
-        if (instances.isEmpty()) {
-            throw new IllegalStateException("Cannot start listener: no instances found for listener " + listenerId);
-        }
+        // 2. Get listener for container naming and image
+        Listener listener = listenerMapper.selectById(listenerInstance.getListenerId());
 
         // 3. Check if container already exists
-        String containerName = "listener-" + listenerId;
+        String containerName = "listener-" + listener.getId() + "-" + listenerInstanceId;
         try {
             InspectContainerResponse existingContainer = dockerClient.inspectContainerCmd(containerName).exec();
             if (existingContainer.getState().getRunning()) {
@@ -84,86 +82,96 @@ public class ListenerContainerManagerImpl implements ListenerContainerManager {
         }
 
         try {
-            // 4. Build instances configuration JSON
-            Map<String, Map<String, Object>> instancesConfig = new HashMap<>();
-            for (ListenerInstance instance : instances) {
-                instancesConfig.put(instance.getName(), instance.getConfig());
-            }
-            String instancesConfigJson = objectMapper.writeValueAsString(instancesConfig);
-
-            // 5. Create container
+            // 4. Create container
             ExposedPort exposedPort = new ExposedPort(8080);
             Ports bindings = new Ports();
             bindings.bind(exposedPort, Ports.Binding.empty());
 
-            CreateContainerResponse response = dockerClient.createContainerCmd(listener.getImageName())
+            CreateContainerCmd cmd = dockerClient.createContainerCmd(listener.getImageName())
                     .withName(containerName)
-                    .withEnv("INSTANCES_CONFIG=" + instancesConfigJson)
                     .withEnv("LOG_TYPE=listener")
                     .withExposedPorts(exposedPort)
                     .withHostConfig(com.github.dockerjava.api.model.HostConfig.newHostConfig()
                             .withPortBindings(bindings)
                             .withBinds(Bind.parse("/var/log/taskm:/var/log/taskm:rw"))
                             .withRestartPolicy(RestartPolicy.onFailureRestart(3))
-                    )
-                    .exec();
+                    );
+
+            // Add instance config as environment variables
+            List<String> envs = new ArrayList<>();
+            for (Map.Entry<String, Object> entry : listenerInstance.getConfig().entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue().toString();
+                envs.add(key + "=" + value);
+            }
+            cmd = cmd.withEnv(envs.toArray(new String[0]));
+
+            CreateContainerResponse response = cmd.exec();
 
             String containerId = response.getId();
             logger.info("Created container {} with ID {}", containerName, containerId);
 
-            // 6. Start container
+            // 5. Start container
             dockerClient.startContainerCmd(containerId).exec();
             logger.info("Started container {}", containerName);
 
-            // 7. Update instances with container ID and status
-            for (ListenerInstance instance : instances) {
-                instance.setContainerId(containerId);
-                instance.setStatus("RUNNING");
-                instanceMapper.updateById(instance);
-            }
+            // 6. Update instance with container ID and status
+            listenerInstance.setContainerId(containerId);
+            listenerInstance.setStatus("RUNNING");
+            instanceMapper.updateById(listenerInstance);
 
-            logger.info("Listener {} container started successfully", listenerId);
+            logger.info("Listener instance {} container started successfully", listenerInstanceId);
             return containerId;
 
         } catch (Exception e) {
-            logger.error("Failed to start container for listener {}", listenerId, e);
+            logger.error("Failed to start container for listener instance {}", listenerInstanceId, e);
             throw new RuntimeException("Failed to start container: " + e.getMessage(), e);
         }
     }
 
     @Override
     @Transactional
-    public void stopListenerContainer(Long listenerId) {
-        logger.info("Stopping container for listener {}", listenerId);
+    public void stopListenerContainer(Long listenerInstanceId) {
+        logger.info("Stopping container for listener instance {}", listenerInstanceId);
 
-        String containerName = "listener-" + listenerId;
+        // 1. Get listener instance
+        ListenerInstance instance = instanceMapper.selectById(listenerInstanceId);
+        if (instance == null) {
+            throw new ListenerNotFoundException("Listener instance not found with id: " + listenerInstanceId);
+        }
+
+        // 2. Get listener for container naming
+        Listener listener = listenerMapper.selectById(instance.getListenerId());
+        String containerName = "listener-" + listener.getId() + "-" + listenerInstanceId;
 
         try {
-            // Check if container exists
+            // 3. Check if container exists and stop it
             InspectContainerResponse container = dockerClient.inspectContainerCmd(containerName).exec();
-
-            // Stop container
             dockerClient.stopContainerCmd(containerName).exec();
             logger.info("Stopped container {}", containerName);
 
-            // Update all instances status to STOPPED
-            List<ListenerInstance> instances = getInstancesByListenerId(listenerId);
-            for (ListenerInstance instance : instances) {
-                if (containerName.equals(instance.getContainerId())) {
-                    instance.setStatus("STOPPED");
-                    instanceMapper.updateById(instance);
-                }
-            }
+            // 4. Update instance status to STOPPED
+            instance.setStatus("STOPPED");
+            instanceMapper.updateById(instance);
 
         } catch (Exception e) {
-            logger.error("Failed to stop container for listener {}", listenerId, e);
+            logger.error("Failed to stop container for listener instance {}", listenerInstanceId, e);
             throw new RuntimeException("Failed to stop container: " + e.getMessage(), e);
         }
     }
 
     @Override
-    public String getContainerStatus(Long listenerId) {
-        String containerName = "listener-" + listenerId;
+    public String getContainerStatus(Long listenerInstanceId) {
+        // 1. Get listener instance
+        ListenerInstance instance = instanceMapper.selectById(listenerInstanceId);
+        if (instance == null) {
+            logger.debug("Listener instance {} not found", listenerInstanceId);
+            return "NOT_FOUND";
+        }
+
+        // 2. Get listener for container naming
+        Listener listener = listenerMapper.selectById(instance.getListenerId());
+        String containerName = "listener-" + listener.getId() + "-" + listenerInstanceId;
 
         try {
             InspectContainerResponse container = dockerClient.inspectContainerCmd(containerName).exec();
@@ -177,22 +185,12 @@ public class ListenerContainerManagerImpl implements ListenerContainerManager {
 
     @Override
     @Transactional
-    public void restartListenerContainer(Long listenerId) {
-        logger.info("Restarting container for listener {}", listenerId);
+    public void restartListenerContainer(Long listenerInstanceId) {
+        logger.info("Restarting container for listener instance {}", listenerInstanceId);
 
-        stopListenerContainer(listenerId);
-        startListenerContainer(listenerId);
+        stopListenerContainer(listenerInstanceId);
+        startListenerContainer(listenerInstanceId);
 
-        logger.info("Listener {} container restarted successfully", listenerId);
-    }
-
-    /**
-     * Get all instances for a listener.
-     */
-    private List<ListenerInstance> getInstancesByListenerId(Long listenerId) {
-        return instanceMapper.selectList(
-            new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<ListenerInstance>()
-                .eq("listener_id", listenerId)
-        );
+        logger.info("Listener instance {} container restarted successfully", listenerInstanceId);
     }
 }

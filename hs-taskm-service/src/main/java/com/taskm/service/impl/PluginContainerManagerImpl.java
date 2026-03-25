@@ -16,19 +16,17 @@ import com.taskm.mapper.DataPluginInstanceMapper;
 import com.taskm.mapper.DataPluginMapper;
 import com.taskm.service.PluginContainerManager;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
- * Service implementation for plugin container management.
- * Manages Docker container lifecycle for plugin containers.
+ * Service implementation for plugin instance container management.
+ * Manages Docker container lifecycle for plugin instance containers (1:1 mapping).
  */
 @Service
 public class PluginContainerManagerImpl implements PluginContainerManager {
@@ -81,12 +79,7 @@ public class PluginContainerManagerImpl implements PluginContainerManager {
         }
 
         try {
-            // 4. Build instances configuration JSON
-            Map<String, Map<String, Object>> instancesConfig = new HashMap<>();
-
-            String instancesConfigJson = objectMapper.writeValueAsString(instancesConfig);
-
-            // 5. Create container
+            // 4. Create container
             Integer port = (Integer) dataPluginInstance.getConfig().get("SERVER_PORT");
             ExposedPort exposedPort = new ExposedPort(port);
 
@@ -128,37 +121,47 @@ public class PluginContainerManagerImpl implements PluginContainerManager {
 
     @Override
     @Transactional
-    public void stopPluginContainer(Long pluginId) {
-        logger.info("Stopping container for plugin {}", pluginId);
+    public void stopPluginContainer(Long pluginInstanceId) {
+        logger.info("Stopping container for plugin instance {}", pluginInstanceId);
 
-        String containerName = "plugin-" + pluginId;
+        // 1. Get plugin instance
+        DataPluginInstance instance = instanceMapper.selectById(pluginInstanceId);
+        if (instance == null) {
+            throw new DataPluginNotFoundException("Plugin instance not found with id: " + pluginInstanceId);
+        }
+
+        // 2. Get plugin for container naming
+        DataPlugin plugin = pluginMapper.selectById(instance.getPluginId());
+        String containerName = "plugin-" + plugin.getId() + "-" + pluginInstanceId;
 
         try {
-            // Check if container exists
+            // 3. Check if container exists and stop it
             InspectContainerResponse container = dockerClient.inspectContainerCmd(containerName).exec();
-
-            // Stop container
             dockerClient.stopContainerCmd(containerName).exec();
             logger.info("Stopped container {}", containerName);
 
-            // Update all instances status to STOPPED
-            List<DataPluginInstance> instances = getInstancesByPluginId(pluginId);
-            for (DataPluginInstance instance : instances) {
-                if (containerName.equals(instance.getContainerId())) {
-                    instance.setStatus("STOPPED");
-                    instanceMapper.updateById(instance);
-                }
-            }
+            // 4. Update instance status to STOPPED
+            instance.setStatus("STOPPED");
+            instanceMapper.updateById(instance);
 
         } catch (Exception e) {
-            logger.error("Failed to stop container for plugin {}", pluginId, e);
+            logger.error("Failed to stop container for plugin instance {}", pluginInstanceId, e);
             throw new RuntimeException("Failed to stop container: " + e.getMessage(), e);
         }
     }
 
     @Override
-    public String getContainerStatus(Long pluginId) {
-        String containerName = "plugin-" + pluginId;
+    public String getContainerStatus(Long pluginInstanceId) {
+        // 1. Get plugin instance
+        DataPluginInstance instance = instanceMapper.selectById(pluginInstanceId);
+        if (instance == null) {
+            logger.debug("Plugin instance {} not found", pluginInstanceId);
+            return "NOT_FOUND";
+        }
+
+        // 2. Get plugin for container naming
+        DataPlugin plugin = pluginMapper.selectById(instance.getPluginId());
+        String containerName = "plugin-" + plugin.getId() + "-" + pluginInstanceId;
 
         try {
             InspectContainerResponse container = dockerClient.inspectContainerCmd(containerName).exec();
@@ -172,22 +175,12 @@ public class PluginContainerManagerImpl implements PluginContainerManager {
 
     @Override
     @Transactional
-    public void restartPluginContainer(Long pluginId) {
-        logger.info("Restarting container for plugin instance {}", pluginId);
+    public void restartPluginContainer(Long pluginInstanceId) {
+        logger.info("Restarting container for plugin instance {}", pluginInstanceId);
 
-        stopPluginContainer(pluginId);
-        startPluginContainer(pluginId);
+        stopPluginContainer(pluginInstanceId);
+        startPluginContainer(pluginInstanceId);
 
-        logger.info("Plugin instance{} container restarted successfully", pluginId);
-    }
-
-    /**
-     * Get all instances for a plugin.
-     */
-    private List<DataPluginInstance> getInstancesByPluginId(Long pluginId) {
-        return instanceMapper.selectList(
-            new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<DataPluginInstance>()
-                .eq("plugin_id", pluginId)
-        );
+        logger.info("Plugin instance {} container restarted successfully", pluginInstanceId);
     }
 }

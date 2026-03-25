@@ -1,38 +1,38 @@
 package com.taskm.service;
 
 /**
- * Service interface for listener container management.
- * Provides container lifecycle operations for listener containers.
+ * Service interface for listener instance container management.
+ * Provides container lifecycle operations for listener instance containers (1:1 mapping).
  */
 public interface ListenerContainerManager {
 
     /**
-     * Start a container for a listener with all its instances.
+     * Start a container for a listener instance.
      *
-     * @param listenerId the listener ID
+     * @param listenerInstanceId the listener instance ID
      * @return container ID
      */
-    String startListenerContainer(Long listenerId);
+    String startListenerContainer(Long listenerInstanceId);
 
     /**
-     * Stop the container for a listener.
+     * Stop the container for a listener instance.
      *
-     * @param listenerId the listener ID
+     * @param listenerInstanceId the listener instance ID
      */
-    void stopListenerContainer(Long listenerId);
+    void stopListenerContainer(Long listenerInstanceId);
 
     /**
-     * Get the status of a listener container.
+     * Get the status of a listener instance container.
      *
-     * @param listenerId the listener ID
+     * @param listenerInstanceId the listener instance ID
      * @return container status (RUNNING, STOPPED, NOT_FOUND)
      */
-    String getContainerStatus(Long listenerId);
+    String getContainerStatus(Long listenerInstanceId);
 
     /**
-     * Restart a listener container.
+     * Restart a listener instance container.
      *
-     * @param listenerId the listener ID
+     * @param listenerInstanceId the listener instance ID
      */
-    void restartListenerContainer(Long listenerId);
+    void restartListenerContainer(Long listenerInstanceId);
 }
