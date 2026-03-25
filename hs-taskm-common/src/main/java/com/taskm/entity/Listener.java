@@ -1,6 +1,7 @@
 package com.taskm.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.taskm.handler.JsonArrayTypeHandler;
 import com.taskm.handler.JsonTypeHandler;
 import java.util.List;
 import lombok.Data;
@@ -68,14 +69,14 @@ public class Listener implements Serializable {
      * Parameter default values (JSON).
      * Format: {"recipients":["admin@example.com"],"subject":"Trade signal notification"}
      */
-    @TableField(typeHandler = JsonTypeHandler.class)
+    @TableField(typeHandler = JsonArrayTypeHandler.class)
     private List<Map<String, Object>> parameterDefaults;
 
     /**
      * Listener metadata (JSON).
      * Format: {"author":"name","version":"1.0","description":"Send notifications"}
      */
-    @TableField(typeHandler = JsonTypeHandler.class)
+    @TableField(typeHandler = JsonArrayTypeHandler.class)
     private List<Map<String, Object>> metadata;
 
     /**

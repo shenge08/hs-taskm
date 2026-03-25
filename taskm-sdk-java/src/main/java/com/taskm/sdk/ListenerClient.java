@@ -5,52 +5,70 @@ import com.taskm.sdk.exception.*;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Client for sending event notifications to listeners.
  *
- * <p>This client provides simple methods to notify listeners about task lifecycle events.
- * It uses fire-and-forget mode - events are sent without waiting for responses.
+ * <p>This client provides a unified method to notify listeners about business events.
+ * It uses fire-and-forget mode - events are sent without waiting for responses.</p>
  *
- * <p>The listener container runs an HTTP server that receives these events.
+ * <h3>Usage Example:</h3>
+ * <pre>{@code
+ * // Initialize client
+ * ListenerClient listener = new ListenerClient();
+ *
+ * // 下订单
+ * Map<String, Object> placeOrderResult = listener.notify("place_order", Map.of(
+ *     "symbol", "BTC/USDT",
+ *     "price", 50000,
+ *     "quantity", 0.1
+ * ));
+ *
+ * // 撤销订单
+ * Map<String, Object> cancelOrderResult = listener.notify("cancel_order", Map.of(
+ *     "orderId", "ORD-12345"
+ * ));
+ *
+ * // 检查订单
+ * Map<String, Object> checkOrderResult = listener.notify("check_order", Map.of(
+ *     "orderId", "ORD-12345"
+ * ));
+ * }</pre>
+ *
+ * <p>The listener container runs an HTTP server that receives these events.</p>
  */
 public class ListenerClient {
 
     private static final String ENV_ENDPOINT = "LISTENER_ENDPOINT";
-    private static final String ENV_TASK_ID = "TASK_ID";
     private static final int DEFAULT_TIMEOUT_SECONDS = 30;
 
     private final String endpoint;
-    private final Long taskId;
     private final int timeoutSeconds;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
     /**
-     * Creates a new ListenerClient with the specified endpoint and task ID.
+     * Creates a new ListenerClient with the specified endpoint.
      *
      * @param endpoint the base URL of the listener instance API
-     * @param taskId the task ID
      */
-    public ListenerClient(String endpoint, Long taskId) {
-        this(endpoint, taskId, DEFAULT_TIMEOUT_SECONDS);
+    public ListenerClient(String endpoint) {
+        this(endpoint, DEFAULT_TIMEOUT_SECONDS);
     }
 
     /**
-     * Creates a new ListenerClient with the specified endpoint, task ID, and timeout.
+     * Creates a new ListenerClient with the specified endpoint and timeout.
      *
      * @param endpoint the base URL of the listener instance API
-     * @param taskId the task ID
      * @param timeoutSeconds request timeout in seconds
      */
-    public ListenerClient(String endpoint, Long taskId, int timeoutSeconds) {
+    public ListenerClient(String endpoint, int timeoutSeconds) {
         // Determine endpoint from parameter or environment
         String finalEndpoint;
         if (endpoint == null || endpoint.trim().isEmpty()) {
-            String envEndpoint = System.getenv(ENV_ENDPOINT);
+            String envEndpoint = Environment.get(ENV_ENDPOINT);
             if (envEndpoint == null || envEndpoint.trim().isEmpty()) {
                 throw new IllegalArgumentException(
                     "Endpoint must be provided either as parameter or " +
@@ -64,90 +82,56 @@ public class ListenerClient {
 
         // Remove trailing slash
         this.endpoint = finalEndpoint.replaceAll("/$", "");
-
-        if (taskId == null) {
-            String envTaskId = System.getenv(ENV_TASK_ID);
-            if (envTaskId == null || envTaskId.trim().isEmpty()) {
-                throw new IllegalArgumentException(
-                    "taskId must be provided either as parameter or " +
-                    "through " + ENV_TASK_ID + " environment variable"
-                );
-            }
-            try {
-                this.taskId = Long.parseLong(envTaskId.trim());
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException(
-                    ENV_TASK_ID + " environment variable must be a valid integer"
-                );
-            }
-        } else {
-            this.taskId = taskId;
-        }
-
         this.timeoutSeconds = timeoutSeconds;
         this.objectMapper = new ObjectMapper();
         this.httpClient = new HttpClient(Duration.ofSeconds(timeoutSeconds));
     }
 
     /**
-     * Notify the listener that the task has started.
-     *
-     * This sends an event notification without waiting for response.
-     *
-     * @throws ListenerConnectionException if connection to listener fails
-     * @throws ListenerTimeoutException if request times out
+     * Default constructor that reads endpoint from LISTENER_ENDPOINT environment variable.
      */
-    public void onTaskStarted() {
-        sendEvent("task-started", new HashMap<>());
+    public ListenerClient() {
+        this(null);
     }
 
     /**
-     * Notify the listener that the task has completed successfully.
+     * Send a business event notification to the listener.
      *
-     * This sends an event notification without waiting for response.
+     * <p>This is the unified method for all event types. The eventType parameter
+     * determines which type of event is being sent.</p>
      *
-     * @param result task execution result
+     * <h3>Supported Event Types:</h3>
+     * <ul>
+     *   <li>place_order - 下订单事件</li>
+     *   <li>cancel_order - 撤销订单事件</li>
+     *   <li>check_order - 检查订单事件</li>
+     * </ul>
+     *
+     * @param eventType the type of event (e.g., "place_order", "cancel_order", "check_order")
+     * @param payload the event data as key-value pairs
+     * @return the response data from the listener as key-value pairs
      * @throws ListenerConnectionException if connection to listener fails
      * @throws ListenerTimeoutException if request times out
      */
-    public void onTaskCompleted(Map<String, Object> result) {
-        Map<String, Object> extraData = new HashMap<>();
-        extraData.put("result", result);
-        sendEvent("task-completed", extraData);
-    }
+    public Map<String, Object> notify(String eventType, Map<String, Object> payload) {
+        if (eventType == null || eventType.trim().isEmpty()) {
+            throw new IllegalArgumentException("eventType cannot be null or empty");
+        }
 
-    /**
-     * Notify the listener that the task has failed.
-     *
-     * This sends an event notification without waiting for response.
-     *
-     * @param error error message describing the failure
-     * @throws ListenerConnectionException if connection to listener fails
-     * @throws ListenerTimeoutException if request times out
-     */
-    public void onTaskFailed(String error) {
-        Map<String, Object> extraData = new HashMap<>();
-        extraData.put("error", error);
-        sendEvent("task-failed", extraData);
-    }
+        if (payload == null) {
+            payload = new HashMap<>();
+        }
 
-    /**
-     * Internal method to send an event to the listener.
-     *
-     * This uses fire-and-forget mode - sends the event and immediately returns.
-     */
-    private void sendEvent(String eventType, Map<String, Object> extraData) {
-        String url = endpoint + "/" + eventType;
-
-        // Build request payload
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("taskId", taskId);
-        payload.put("timestamp", Instant.now().toString());
-        payload.putAll(extraData);
+        String url = endpoint + "/api/event/" + eventType;
 
         try {
-            // Fire and forget - don't wait for response
-            httpClient.post(url, payload);
+            // Send request and wait for response
+            String jsonResponse = httpClient.post(url, payload);
+
+            // Parse response
+            Map<String, Object> response = objectMapper.readValue(jsonResponse, Map.class);
+            return response;
+
         } catch (IOException e) {
             if (e.getCause() instanceof java.util.concurrent.TimeoutException) {
                 throw new ListenerTimeoutException(
@@ -161,11 +145,17 @@ public class ListenerClient {
                 url,
                 e
             );
+        } catch (Exception e) {
+            throw new ListenerConnectionException(
+                "Failed to parse response: " + e.getMessage(),
+                url,
+                e
+            );
         }
     }
 
     /**
-     * Simple HTTP client wrapper using java.net.http.HttpClient.
+     * HTTP client wrapper using java.net.http.HttpClient.
      */
     private static class HttpClient {
         private final java.net.http.HttpClient client;
@@ -178,7 +168,7 @@ public class ListenerClient {
                 .build();
         }
 
-        void post(String url, Object body) throws IOException {
+        String post(String url, Object body) throws IOException {
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 String jsonBody = mapper.writeValueAsString(body);
@@ -190,8 +180,8 @@ public class ListenerClient {
                     .POST(java.net.http.HttpRequest.BodyPublishers.ofString(jsonBody))
                     .build();
 
-                // Discard response - fire and forget
-                client.send(request, java.net.http.HttpResponse.BodyHandlers.discarding());
+                // Get response body as string
+                return client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

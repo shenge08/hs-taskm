@@ -63,10 +63,13 @@ public class HealthController {
         info.put("version", "1.0.0");
         info.put("description", "Sample listener web application for TaskM");
         info.put("endpoints", Map.of(
-            "task-started", "/api/task-started",
-            "task-completed", "/api/task-completed",
-            "task-failed", "/api/task-failed",
+            "event", "/api/event/{eventType}",
             "health", "/api/health"
+        ));
+        info.put("supportedEventTypes", Map.of(
+            "place_order", "下订单事件 (调用BIMS API生成可转债订单)",
+            "cancel_order", "撤销订单事件 (调用BIMS API根据任务ID和子单ID撤销，需提供taskId和subOrderId)",
+            "check_order", "检查订单事件 (调用BIMS API根据任务ID查询成交量)"
         ));
         info.put("timestamp", Instant.now());
         return ResponseEntity.ok(info);

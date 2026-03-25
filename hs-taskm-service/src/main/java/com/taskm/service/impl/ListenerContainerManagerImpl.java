@@ -73,11 +73,20 @@ public class ListenerContainerManagerImpl implements ListenerContainerManager {
                 logger.info("Container {} is already running", containerName);
                 return existingContainer.getId();
             } else {
-                // Remove stopped container
-                dockerClient.removeContainerCmd(containerName).exec();
+                // Container exists but is stopped, start it directly
+                logger.info("Container {} exists but is stopped, starting it", containerName);
+                dockerClient.startContainerCmd(existingContainer.getId()).exec();
+                logger.info("Started existing container {}", containerName);
+
+                // Update instance status
+                listenerInstance.setContainerId(existingContainer.getId());
+                listenerInstance.setStatus("RUNNING");
+                instanceMapper.updateById(listenerInstance);
+
+                return existingContainer.getId();
             }
         } catch (Exception e) {
-            // Container doesn't exist, continue with creation
+            // Container doesn't exist, will create new
             logger.debug("Container {} does not exist, will create new", containerName);
         }
 
@@ -188,9 +197,31 @@ public class ListenerContainerManagerImpl implements ListenerContainerManager {
     public void restartListenerContainer(Long listenerInstanceId) {
         logger.info("Restarting container for listener instance {}", listenerInstanceId);
 
-        stopListenerContainer(listenerInstanceId);
-        startListenerContainer(listenerInstanceId);
+        // 1. Check current container status
+        String status = getContainerStatus(listenerInstanceId);
+        logger.info("Current container status: {}", status);
 
-        logger.info("Listener instance {} container restarted successfully", listenerInstanceId);
+        // 2. Stop container only if it's running
+        if ("RUNNING".equals(status)) {
+            logger.info("Container is running, stopping it first");
+            try {
+                stopListenerContainer(listenerInstanceId);
+            } catch (Exception e) {
+                logger.warn("Failed to stop container, will try to start anyway: {}", e.getMessage());
+            }
+        } else if ("STOPPED".equals(status)) {
+            logger.info("Container is stopped, will start directly");
+        } else {
+            logger.info("Container not found ({}), will create new container", status);
+        }
+
+        // 3. Always try to start the container
+        try {
+            startListenerContainer(listenerInstanceId);
+            logger.info("Listener instance {} container restarted successfully", listenerInstanceId);
+        } catch (Exception e) {
+            logger.error("Failed to restart container for listener instance {}", listenerInstanceId, e);
+            throw new RuntimeException("Failed to restart container: " + e.getMessage(), e);
+        }
     }
 }

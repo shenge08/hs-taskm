@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS listener (
 );
 
 COMMENT ON TABLE listener IS 'Event listener configurations';
-COMMENT ON COLUMN listener.event_type IS 'Event type to listen for';
+COMMENT ON COLUMN listener.event_type IS 'Event type to listen for: place_order, cancel_order, check_order';
 COMMENT ON COLUMN listener.parameters IS 'Listener parameters in JSON format';
 COMMENT ON COLUMN listener.parameter_defaults IS 'Default values for parameters';
 

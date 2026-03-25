@@ -70,11 +70,20 @@ public class PluginContainerManagerImpl implements PluginContainerManager {
                 logger.info("Container {} is already running", containerName);
                 return existingContainer.getId();
             } else {
-                // Remove stopped container
-                dockerClient.removeContainerCmd(containerName).exec();
+                // Container exists but is stopped, start it directly
+                logger.info("Container {} exists but is stopped, starting it", containerName);
+                dockerClient.startContainerCmd(existingContainer.getId()).exec();
+                logger.info("Started existing container {}", containerName);
+
+                // Update instance status
+                dataPluginInstance.setContainerId(existingContainer.getId());
+                dataPluginInstance.setStatus("RUNNING");
+                instanceMapper.updateById(dataPluginInstance);
+
+                return existingContainer.getId();
             }
         } catch (Exception e) {
-            // Container doesn't exist, continue with creation
+            // Container doesn't exist, will create new
             logger.debug("Container {} does not exist, will create new", containerName);
         }
 
@@ -178,9 +187,31 @@ public class PluginContainerManagerImpl implements PluginContainerManager {
     public void restartPluginContainer(Long pluginInstanceId) {
         logger.info("Restarting container for plugin instance {}", pluginInstanceId);
 
-        stopPluginContainer(pluginInstanceId);
-        startPluginContainer(pluginInstanceId);
+        // 1. Check current container status
+        String status = getContainerStatus(pluginInstanceId);
+        logger.info("Current container status: {}", status);
 
-        logger.info("Plugin instance {} container restarted successfully", pluginInstanceId);
+        // 2. Stop container only if it's running
+        if ("RUNNING".equals(status)) {
+            logger.info("Container is running, stopping it first");
+            try {
+                stopPluginContainer(pluginInstanceId);
+            } catch (Exception e) {
+                logger.warn("Failed to stop container, will try to start anyway: {}", e.getMessage());
+            }
+        } else if ("STOPPED".equals(status)) {
+            logger.info("Container is stopped, will start directly");
+        } else {
+            logger.info("Container not found ({}), will create new container", status);
+        }
+
+        // 3. Always try to start the container
+        try {
+            startPluginContainer(pluginInstanceId);
+            logger.info("Plugin instance {} container restarted successfully", pluginInstanceId);
+        } catch (Exception e) {
+            logger.error("Failed to restart container for plugin instance {}", pluginInstanceId, e);
+            throw new RuntimeException("Failed to restart container: " + e.getMessage(), e);
+        }
     }
 }

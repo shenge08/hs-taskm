@@ -1,8 +1,5 @@
 package com.taskm.listener.sample.controller;
 
-import com.taskm.listener.sample.dto.TaskCompletedRequest;
-import com.taskm.listener.sample.dto.TaskFailedRequest;
-import com.taskm.listener.sample.dto.TaskStartedRequest;
 import com.taskm.listener.sample.service.ListenerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -11,21 +8,24 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 /**
- * REST Controller for receiving task lifecycle events from strategies.
+ * REST Controller for receiving business events from strategies.
  *
- * <p>This controller provides three endpoints that match the TaskM SDK's ListenerClient interface:</p>
+ * <p>This controller provides a unified event interface that handles all types of business events.</p>
  *
+ * <h3>Supported Event Types:</h3>
  * <ul>
- *   <li>POST /task-started - Notify that a task has started</li>
- *   <li>POST /task-completed - Notify that a task completed successfully</li>
- *   <li>POST /task-failed - Notify that a task has failed</li>
+ *   <li>place_order - 下订单事件 (调用BIMS API生成可转债订单)</li>
+ *   <li>cancel_order - 撤销订单事件 (调用BIMS API根据任务ID和子单ID撤销，需提供taskId和subOrderId)</li>
+ *   <li>check_order - 检查订单事件 (调用BIMS API根据任务ID查询成交量)</li>
  * </ul>
  *
  * <h3>Usage from Strategy Code:</h3>
@@ -33,27 +33,36 @@ import org.springframework.web.bind.annotation.*;
  * import com.taskm.sdk.ListenerClient;
  *
  * // The listener endpoint is set via environment variable
- * // LISTENER_ENDPOINT=http://listener-host:8080/api
- * // TASK_ID=123
+ * // LISTENER_ENDPOINT=http://listener-host:8080
  *
  * ListenerClient listener = new ListenerClient();
  *
- * // Notify task started
- * listener.onTaskStarted();
+ * // 下订单
+ * Map<String, Object> result = listener.notify("place_order", Map.of(
+ *     "symbol", "BTC/USDT",
+ *     "price", 50000,
+ *     "quantity", 0.1
+ * ));
  *
- * // Notify task completed
- * listener.onTaskCompleted(Map.of("profit", 100.5, "trades", 5));
+ * // 撤销订单
+ * Map<String, Object> result = listener.notify("cancel_order", Map.of(
+ *     "orderId", "12345"
+ * ));
  *
- * // Notify task failed
- * listener.onTaskFailed("Connection timeout");
+ * // 检查订单
+ * Map<String, Object> result = listener.notify("check_order", Map.of(
+ *     "orderId", "12345"
+ * ));
  * }</pre>
  *
  * @since 1.0.0
  */
 @RestController
 @RequestMapping("/api")
-@Tag(name = "监听器接口", description = "接收策略任务生命周期事件的 REST API")
+@Tag(name = "监听器接口", description = "接收策略业务事件的统一 REST API")
 public class ListenerController {
+
+    private static final Logger logger = LoggerFactory.getLogger(ListenerController.class);
 
     private final ListenerService listenerService;
 
@@ -63,121 +72,52 @@ public class ListenerController {
     }
 
     /**
-     * Handle task-started event.
+     * 统一事件处理接口
      *
-     * <p>This endpoint is called when a strategy task starts execution.
-     * The ListenerClient.onTaskStarted() method in the strategy sends this event.</p>
+     * <p>此接口接收所有类型的业务事件，根据 eventType 路径参数分发到不同的处理逻辑。</p>
      *
-     * @param request task started request data
-     * @return success response
+     * @param eventType 事件类型（place_order, cancel_order, check_order）
+     * @param payload 事件数据（键值对）
+     * @return 处理结果（键值对）
      */
-    @PostMapping("/task-started")
+    @PostMapping("/event/{eventType}")
     @Operation(
-        summary = "任务开始事件",
-        description = "接收策略任务开始执行的通知。策略代码调用 ListenerClient.onTaskStarted() 时会发送此事件。"
+        summary = "统一事件接口",
+        description = "接收并处理策略发送的业务事件。支持的事件类型：place_order（下订单，调用BIMS API生成可转债订单）、cancel_order（撤销订单，调用BIMS API根据任务ID和子单ID撤销，需提供taskId和subOrderId）、check_order（检查订单，调用BIMS API根据任务ID查询成交量）。"
     )
     @ApiResponses({
         @ApiResponse(
             responseCode = "200",
             description = "事件处理成功",
-            content = @Content(schema = @Schema(implementation = com.taskm.listener.sample.dto.ListenerResponse.class))
+            content = @Content(schema = @Schema(implementation = Map.class))
         ),
-        @ApiResponse(responseCode = "400", description = "请求数据格式错误", content = @Content),
+        @ApiResponse(responseCode = "400", description = "不支持的事件类型或数据格式错误", content = @Content),
         @ApiResponse(responseCode = "500", description = "服务器内部错误", content = @Content)
     })
-    public ResponseEntity<com.taskm.listener.sample.dto.ListenerResponse> handleTaskStarted(
-        @Parameter(description = "任务开始事件数据", required = true)
-        @Valid @RequestBody TaskStartedRequest request
-    ) {
-        try {
-            listenerService.handleTaskStarted(request);
-            return ResponseEntity.ok(
-                com.taskm.listener.sample.dto.ListenerResponse.success("Task started event received")
-            );
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                com.taskm.listener.sample.dto.ListenerResponse.error("Failed to process task started: " + e.getMessage())
-            );
-        }
-    }
+    public ResponseEntity<Map<String, Object>> handleEvent(
+        @Parameter(description = "事件类型", required = true, example = "place_order")
+        @PathVariable String eventType,
 
-    /**
-     * Handle task-completed event.
-     *
-     * <p>This endpoint is called when a strategy task completes successfully.
-     * The ListenerClient.onTaskCompleted(result) method in the strategy sends this event.</p>
-     *
-     * @param request task completed request data
-     * @return success response
-     */
-    @PostMapping("/task-completed")
-    @Operation(
-        summary = "任务完成事件",
-        description = "接收策略任务成功完成的通知。策略代码调用 ListenerClient.onTaskCompleted(result) 时会发送此事件，" +
-                     "并包含任务执行结果数据。"
-    )
-    @ApiResponses({
-        @ApiResponse(
-            responseCode = "200",
-            description = "事件处理成功",
-            content = @Content(schema = @Schema(implementation = com.taskm.listener.sample.dto.ListenerResponse.class))
-        ),
-        @ApiResponse(responseCode = "400", description = "请求数据格式错误", content = @Content),
-        @ApiResponse(responseCode = "500", description = "服务器内部错误", content = @Content)
-    })
-    public ResponseEntity<com.taskm.listener.sample.dto.ListenerResponse> handleTaskCompleted(
-        @Parameter(description = "任务完成事件数据", required = true)
-        @Valid @RequestBody TaskCompletedRequest request
+        @Parameter(description = "事件数据（键值对）", required = true)
+        @RequestBody Map<String, Object> payload
     ) {
-        try {
-            listenerService.handleTaskCompleted(request);
-            return ResponseEntity.ok(
-                com.taskm.listener.sample.dto.ListenerResponse.success("Task completed event received")
-            );
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                com.taskm.listener.sample.dto.ListenerResponse.error("Failed to process task completed: " + e.getMessage())
-            );
-        }
-    }
+        logger.info("Received event: {}, payload: {}", eventType, payload);
 
-    /**
-     * Handle task-failed event.
-     *
-     * <p>This endpoint is called when a strategy task fails during execution.
-     * The ListenerClient.onTaskFailed(error) method in the strategy sends this event.</p>
-     *
-     * @param request task failed request data
-     * @return success response
-     */
-    @PostMapping("/task-failed")
-    @Operation(
-        summary = "任务失败事件",
-        description = "接收策略任务执行失败的通知。策略代码调用 ListenerClient.onTaskFailed(error) 时会发送此事件，" +
-                     "并包含错误信息。"
-    )
-    @ApiResponses({
-        @ApiResponse(
-            responseCode = "200",
-            description = "事件处理成功",
-            content = @Content(schema = @Schema(implementation = com.taskm.listener.sample.dto.ListenerResponse.class))
-        ),
-        @ApiResponse(responseCode = "400", description = "请求数据格式错误", content = @Content),
-        @ApiResponse(responseCode = "500", description = "服务器内部错误", content = @Content)
-    })
-    public ResponseEntity<com.taskm.listener.sample.dto.ListenerResponse> handleTaskFailed(
-        @Parameter(description = "任务失败事件数据", required = true)
-        @Valid @RequestBody TaskFailedRequest request
-    ) {
         try {
-            listenerService.handleTaskFailed(request);
-            return ResponseEntity.ok(
-                com.taskm.listener.sample.dto.ListenerResponse.success("Task failed event received")
-            );
+            Map<String, Object> result = listenerService.handleEvent(eventType, payload);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid event type: {}", eventType, e);
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "error", "Unknown event type: " + eventType
+            ));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                com.taskm.listener.sample.dto.ListenerResponse.error("Failed to process task failed: " + e.getMessage())
-            );
+            logger.error("Failed to process event: {}", eventType, e);
+            return ResponseEntity.internalServerError().body(Map.of(
+                "success", false,
+                "error", e.getMessage()
+            ));
         }
     }
 }

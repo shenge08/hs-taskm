@@ -1,4 +1,4 @@
-# TaskM Listener Sample Application Configuration
+mvn # TaskM Listener Sample Application Configuration
 
 server:
   port: ${SERVER_PORT:8080}
@@ -56,3 +56,16 @@ logging:
 # TaskM SDK configuration (read via Environment class)
 # LOG_LEVEL: DEBUG, INFO, WARNING, ERROR (default: INFO)
 # LOG_FORMAT: text, json (default: text)
+
+# BIMS (Bond Trading Management System) API configuration
+# These environment variables are REQUIRED for BondTradingApiClient
+# BIMS_BASE_URL: Base URL of the BIMS API (e.g., http://172.16.90.114:8081) - REQUIRED
+# BIMS_USERNAME: Login username for BIMS API - REQUIRED
+# BIMS_PASSWORD: Login password for BIMS API - REQUIRED
+#
+# Withdrawal polling configuration for handleCancelOrder (optional)
+# WITHDRAWAL_MAX_RETRIES: Maximum number of retries when polling withdrawal result (default: 10)
+# WITHDRAWAL_POLL_INTERVAL_MS: Polling interval in milliseconds (default: 1000)
+# WITHDRAWAL_SUCCESS_WAIT_MS: Wait time after successful withdrawal for data sync (default: 10000)
+
+
