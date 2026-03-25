@@ -1,0 +1,365 @@
+package com.taskm.plugin.sample.service;
+
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.http.HttpRequest;
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.futuresroll.config.RollConfig;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * 模拟经纪商
+ */
+public class MockBroker implements IBroker {
+    private final static Logger log = LoggerFactory.getLogger(MockBroker.class);
+    private AtomicInteger orderCounter = new AtomicInteger(0);
+
+    private static final String MARKET_DATA_URL = "http://172.16.90.99:8898/wdd/getBondInfoCompleteCommand";
+
+    private static final String ORDER_QUERY_URL = "http://172.16.90.114:8081/bims/api/tradeQuantifyScheme/getDealQuantityByTaskId/{taskId}";
+
+    private static final String ORDER_CANCEL_URL = "http://172.16.90.114:8081/bims/api/tradeQuantifyScheme/withdrawOrderByTaskId/{taskId}";
+
+    private static final String ORDER_CREATE_URL = "http://172.16.90.114:8081/bims/api/tradeQuantifyScheme/generateProcessByStrategyOrderParams";
+    private static final String ORDER_CNCEL_CONFIRM_URL = "http://172.16.90.114:8081/bims/api/tradeQuantifyScheme/getStrategyWithdrawalResult";
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private boolean connected = false;
+
+    private RollConfig rollConfig;
+
+    public void setRollConfig(RollConfig rollConfig) {
+        this.rollConfig = rollConfig;
+    }
+
+    @Override
+    public boolean connect() {
+        connected = true;
+        return true;
+    }
+    
+    @Override
+    public void disconnect() {
+        connected = false;
+    }
+    
+    @Override
+    public MarketData getMarketData(String symbol) {
+        try {
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("code", symbol);
+            requestBody.put("field", "rt_ask1,rt_bid1,rt_last");
+            requestBody.put("date", "wsq");
+
+            String responseBody = HttpRequest.post(MARKET_DATA_URL)
+                .body(requestBody.toString())
+                .timeout(5000)
+                .execute()
+                .body();
+
+            if (StrUtil.isNotBlank(responseBody)) {
+                JSONArray jsonArray = JSONUtil.parseArray(responseBody);
+                if (jsonArray.size() >= 2) {
+                    JSONArray askArray = jsonArray.getJSONArray(0);
+                    JSONArray bidArray = jsonArray.getJSONArray(1);
+                    JSONArray lasArray = jsonArray.getJSONArray(2);
+
+                    double askPrice = askArray.size() > 0 ? askArray.getDouble(0) : 0.0;
+                    double bidPrice = bidArray.size() > 0 ? bidArray.getDouble(0) : 0.0;
+                    double lastPrice =lasArray.size() > 0 ? lasArray.getDouble(0) : 0.0;
+
+                    return new MarketData(symbol, bidPrice, askPrice, lastPrice);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return new MarketData(symbol, 3499.5, 3500.5, 3500.0);
+    }
+
+
+    
+    @Override
+    public OrderResult placeLimitOrder(String symbol, Direction direction, int qty, double price,String orderId) {
+
+        MarketData market = getMarketData(symbol);
+        //调用bims接口去下单
+        try {
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("symbol", symbol);
+            requestBody.put("price", price);
+            requestBody.put("quantity", qty);
+            requestBody.put("side", "BUY");
+            requestBody.put("trade_action", "开仓");
+            requestBody.put("task_id", rollConfig.getTaskId());
+            requestBody.put("sub_order_id", orderId);
+
+            String responseBody = HttpRequest.post(ORDER_CREATE_URL)
+                .header("X-Token","eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3NzM3MTIyNjgsInVzZXJuYW1lIjoiYWRtaW5AY29saWdodGFtYy5jb20ifQ.qYiQTAjl3uP8W6xTv6LkbOcUDSpj6fgbiGLctTem2vI")
+                .body(requestBody.toString())
+                .timeout(5000)
+                .execute()
+                .body();
+            log.info("下限价单 {} 结果 {}",JSONUtil.toJsonStr(requestBody), responseBody);
+            if (StrUtil.isNotBlank(responseBody)) {
+                JSONObject res = JSONUtil.parseObj(responseBody);
+                JSONObject data = res.getJSONObject("data");
+                if(null == data){
+                    return new OrderResult(orderId, OrderStatus.REJECTED, qty, market.getLast());
+                }
+                Boolean result = data.getBool("result");
+                if(null != result && result){
+                    return new OrderResult(orderId, OrderStatus.PENDING, qty, market.getLast());
+                }else{
+                    return new OrderResult(orderId, OrderStatus.REJECTED, qty, market.getLast());
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return new OrderResult(orderId, OrderStatus.REJECTED, qty, market.getLast());
+    }
+    
+    @Override
+    public OrderResult placeMarketOrder(String symbol, Direction direction, int qty,String orderId) {
+        if(direction.equals(Direction.SELL)){
+            return this.placeMarketOrderForSell(symbol,qty,orderId);
+        }else{
+            return this.placeMarketOrderForBuy(symbol,qty,orderId);
+        }
+    }
+
+    private  OrderResult placeMarketOrderForSell(String symbol,int qty,String orderId) {
+        MarketData market = getMarketData(symbol);
+
+        //调用bims接口去下单
+        try {
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("symbol", symbol);
+            requestBody.put("price", market.getBid());
+            requestBody.put("quantity", qty);
+            requestBody.put("side", "BUY");
+            requestBody.put("trade_action", "平仓");
+            //requestBody.put("task_id", "20260305000001");
+            requestBody.put("task_id", rollConfig.getTaskId());
+            requestBody.put("sub_order_id", orderId);
+
+            String responseBody = HttpRequest.post(ORDER_CREATE_URL)
+                .header("X-Token","eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3NzM3MTIyNjgsInVzZXJuYW1lIjoiYWRtaW5AY29saWdodGFtYy5jb20ifQ.qYiQTAjl3uP8W6xTv6LkbOcUDSpj6fgbiGLctTem2vI")
+                .body(requestBody.toString())
+                .timeout(5000)
+                .execute()
+                .body();
+            log.info("下市价单 {} 结果 {}",JSONUtil.toJsonStr(requestBody), responseBody);
+            if (StrUtil.isNotBlank(responseBody)) {
+                JSONObject res = JSONUtil.parseObj(responseBody);
+                JSONObject data = res.getJSONObject("data");
+                if(null == data){
+                    return new OrderResult(orderId, OrderStatus.REJECTED, qty, market.getLast());
+                }
+                Boolean result = data.getBool("result");
+                if(null != result && result){
+                    return new OrderResult(orderId, OrderStatus.PENDING, qty, market.getLast());
+                }else{
+                    return new OrderResult(orderId, OrderStatus.REJECTED, qty, market.getLast());
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return new OrderResult(orderId, OrderStatus.REJECTED, qty, market.getLast());
+    }
+
+    private  OrderResult placeMarketOrderForBuy(String symbol,int qty,String orderId) {
+        MarketData market = getMarketData(symbol);
+
+        //调用bims接口去下单
+        try {
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("symbol", symbol);
+            requestBody.put("price", market.getAsk());
+            requestBody.put("quantity", qty);
+            requestBody.put("side", "BUY");
+            requestBody.put("trade_action", "开仓");
+            //requestBody.put("task_id", "20260305000001");
+            requestBody.put("task_id", rollConfig.getTaskId());
+            requestBody.put("sub_order_id", orderId);
+
+            String responseBody = HttpRequest.post(ORDER_CREATE_URL)
+                .header("X-Token","eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3NzM3MTIyNjgsInVzZXJuYW1lIjoiYWRtaW5AY29saWdodGFtYy5jb20ifQ.qYiQTAjl3uP8W6xTv6LkbOcUDSpj6fgbiGLctTem2vI")
+                .body(requestBody.toString())
+                .timeout(5000)
+                .execute()
+                .body();
+
+            log.info("下市价单 {} 结果 {}",JSONUtil.toJsonStr(requestBody), responseBody);
+
+            if (StrUtil.isNotBlank(responseBody)) {
+                JSONObject res = JSONUtil.parseObj(responseBody);
+                JSONObject data = res.getJSONObject("data");
+                if(null == data){
+                    return new OrderResult(orderId, OrderStatus.REJECTED, qty, market.getLast());
+                }
+                Boolean result = data.getBool("result");
+                if(null != result && result){
+                    return new OrderResult(orderId, OrderStatus.PENDING, qty, market.getLast());
+                }else{
+                    return new OrderResult(orderId, OrderStatus.REJECTED, qty, market.getLast());
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return new OrderResult(orderId, OrderStatus.REJECTED, qty, market.getLast());
+    }
+
+    @Override
+    public Boolean cancelOrder(String symbol, Direction direction, int qty, String orderId) {
+        //尝试取消订单
+        Boolean b = tryCancel(orderId);
+
+        //取消订单成功
+        if(b){
+            Boolean finish =false;
+            while (!finish){
+                finish = confirmCancel(orderId);
+                if(!finish){
+                    BimsOrderDetail orderSuccessCount = getOrderSuccessCount(orderId);
+                    if(orderSuccessCount.getCount()>0){
+                        finish = true;
+                    }
+                }
+
+                try{
+                        Thread.sleep(2000L);
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
+                if(finish){
+                    log.warn("{} 订单取消成功,等待成交查询10秒", orderId);
+                    try{
+                        Thread.sleep(10000L);
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
+
+                }
+            }
+        }
+        return  b;
+    }
+
+
+    private Boolean tryCancel( String orderId){
+        //调用bims接口去下单
+        try {
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("task_id", rollConfig.getTaskId());
+            requestBody.put("sub_order_id", orderId);
+
+            String responseBody = HttpRequest.post(ORDER_CANCEL_URL.replace("{taskId}", rollConfig.getTaskId()))
+                .header("X-Token","eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3NzM3MTIyNjgsInVzZXJuYW1lIjoiYWRtaW5AY29saWdodGFtYy5jb20ifQ.qYiQTAjl3uP8W6xTv6LkbOcUDSpj6fgbiGLctTem2vI")
+                .execute()
+                .body();
+            log.info("取消下单 {} 结果 {}",JSONUtil.toJsonStr(requestBody), responseBody);
+            if (StrUtil.isNotBlank(responseBody)) {
+                JSONObject res = JSONUtil.parseObj(responseBody);
+                JSONObject data = res.getJSONObject("data");
+                if(null == data){
+                    return false;
+                }
+                Boolean result = data.getBool("result");
+                if(null != result && result){
+                    return true;
+                }else{
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    private Boolean confirmCancel(String orderId){
+
+        try {
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("task_id", rollConfig.getTaskId());
+            requestBody.put("sub_order_id", orderId);
+
+            String responseBody = HttpRequest.post(ORDER_CNCEL_CONFIRM_URL)
+                .header("X-Token","eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3NzM3MTIyNjgsInVzZXJuYW1lIjoiYWRtaW5AY29saWdodGFtYy5jb20ifQ.qYiQTAjl3uP8W6xTv6LkbOcUDSpj6fgbiGLctTem2vI")
+                .body(requestBody.toString())
+                .execute()
+                .body();
+            log.info("取消下单 查询{} 结果 {}",JSONUtil.toJsonStr(requestBody), responseBody);
+            if (StrUtil.isNotBlank(responseBody)) {
+                JSONObject res = JSONUtil.parseObj(responseBody);
+                JSONObject data = res.getJSONObject("data");
+                if(null == data){
+                    return false;
+                }
+                Boolean result = data.getBool("result");
+                if(null != result && result){
+                    return true;
+                }else{
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    @Override
+    public BimsOrderDetail getOrderSuccessCount(String orderId) {
+        //调用bims接口去下单
+        try {
+            String responseBody = HttpRequest.get(ORDER_QUERY_URL.replace("{taskId}", rollConfig.getTaskId()))
+                .header("X-Token","eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3NzM3MTIyNjgsInVzZXJuYW1lIjoiYWRtaW5AY29saWdodGFtYy5jb20ifQ.qYiQTAjl3uP8W6xTv6LkbOcUDSpj6fgbiGLctTem2vI")
+                .execute()
+                .body();
+            log.info("查询订单 {} 结果 {}",orderId,responseBody);
+            if (StrUtil.isNotBlank(responseBody)) {
+                JSONObject res = JSONUtil.parseObj(responseBody);
+                JSONObject data = res.getJSONObject("data");
+                if(null == data){
+                    return BimsOrderDetail.fail(orderId);
+                }
+                Boolean result = data.getBool("result");
+                if(null != result && result){
+                    JSONArray resultData = data.getJSONArray("result_data");
+                    if(null == resultData){
+                        return BimsOrderDetail.success(orderId,0,0.0);
+                    }
+                    for (int i = 0; i < resultData.size(); i++) {
+                        JSONObject item = resultData.getJSONObject(i);
+                        if(orderId.equals(item.getStr("sub_order_id"))){
+                            Integer dealQuantity = item.getInt("deal_quantity");
+                            if(null ==dealQuantity){
+                                dealQuantity = 0;
+                            }
+                            Double netPrice = item.getDouble("net_price");
+                            if(null == netPrice){
+                                netPrice = 0.0;
+                            }
+                            return BimsOrderDetail.success(orderId,dealQuantity,netPrice);
+                        }
+                    }
+                }else{
+                    return BimsOrderDetail.fail(orderId);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return BimsOrderDetail.fail(orderId);
+    }
+
+
+}

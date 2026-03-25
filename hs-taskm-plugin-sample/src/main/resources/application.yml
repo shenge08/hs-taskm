@@ -1,0 +1,58 @@
+# TaskM Data Plugin Sample Application Configuration
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: taskm-plugin-sample
+
+  # JSON configuration
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+  # Actuator configuration
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,metrics
+        base-path: /actuator
+    endpoint:
+      health:
+        show-details: always
+    info:
+      env:
+        enabled: true
+
+# OpenAPI/Swagger configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+  show-actuator: true
+
+# Logging configuration
+logging:
+  level:
+    root: INFO
+    com.taskm.plugin.sample: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %level - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %level - %msg%n"
+  file:
+    name: logs/plugin-sample.log
+
+# TaskM SDK configuration (read via Environment class)
+# LOG_LEVEL: DEBUG, INFO, WARNING, ERROR (default: INFO)
+# LOG_FORMAT: text, json (default: text)
