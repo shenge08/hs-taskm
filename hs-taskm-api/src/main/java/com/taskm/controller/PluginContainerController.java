@@ -20,7 +20,7 @@ import java.util.Map;
  * @version 1.0.0
  */
 @RestController
-@RequestMapping("/api/plugins/{pluginId}/container")
+@RequestMapping("/api/plugins/{pluginInstanceId}/container")
 @Tag(name = "插件容器管理", description = "插件容器的启动、停止、重启和状态查询接口")
 public class PluginContainerController {
 
@@ -34,27 +34,27 @@ public class PluginContainerController {
     /**
      * 启动插件容器
      *
-     * @param pluginId 插件 ID
+     * @param pluginInstanceId 插件 ID
      * @return 容器 ID
      */
     @PostMapping("/start")
     @Operation(summary = "启动插件容器", description = "启动指定插件的 Docker 容器")
-    @Parameter(name = "pluginId", description = "插件 ID", required = true, example = "1")
+    @Parameter(name = "pluginInstanceId", description = "插件实例 ID", required = true, example = "1")
     @io.swagger.v3.oas.annotations.responses.ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "容器启动成功"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "容器启动失败"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "插件不存在"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "服务器内部错误")
     })
-    public Result<Map<String, String>> startContainer(@PathVariable Long pluginId) {
-        String containerId = pluginContainerManager.startPluginContainer(pluginId);
+    public Result<Map<String, String>> startContainer(@PathVariable Long pluginInstanceId) {
+        String containerId = pluginContainerManager.startPluginContainer(pluginInstanceId);
         return Result.success("Container started successfully", Map.of("containerId", containerId));
     }
 
     /**
      * 停止插件容器
      *
-     * @param pluginId 插件 ID
+     * @param pluginInstanceId 插件 ID
      * @return 成功消息
      */
     @PostMapping("/stop")

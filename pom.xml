@@ -44,6 +44,8 @@
         <module>hs-taskm-service</module>
         <module>hs-taskm-api</module>
         <module>hs-taskm-cli</module>
+        <module>hs-taskm-listener-sample</module>
+        <module>hs-taskm-plugin-sample</module>
     </modules>
 
     <dependencyManagement>

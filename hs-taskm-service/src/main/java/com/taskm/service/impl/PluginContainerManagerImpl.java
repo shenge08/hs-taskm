@@ -2,6 +2,7 @@ package com.taskm.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.model.Bind;
@@ -14,6 +15,7 @@ import com.taskm.exception.DataPluginNotFoundException;
 import com.taskm.mapper.DataPluginInstanceMapper;
 import com.taskm.mapper.DataPluginMapper;
 import com.taskm.service.PluginContainerManager;
+import java.util.ArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,23 +54,18 @@ public class PluginContainerManagerImpl implements PluginContainerManager {
 
     @Override
     @Transactional
-    public String startPluginContainer(Long pluginId) {
-        logger.info("Starting container for plugin {}", pluginId);
+    public String startPluginContainer(Long pluginInstanceId) {
+        logger.info("Starting container for plugin instance {}", pluginInstanceId);
 
         // 1. Verify plugin exists
-        DataPlugin plugin = pluginMapper.selectById(pluginId);
-        if (plugin == null) {
-            throw new DataPluginNotFoundException("Plugin not found with id: " + pluginId);
+        DataPluginInstance dataPluginInstance = instanceMapper.selectById(pluginInstanceId);
+        if (dataPluginInstance == null) {
+            throw new DataPluginNotFoundException("Plugin Instance not found with id: " + pluginInstanceId);
         }
 
-        // 2. Get all instances for this plugin
-        List<DataPluginInstance> instances = getInstancesByPluginId(pluginId);
-        if (instances.isEmpty()) {
-            throw new IllegalStateException("Cannot start plugin: no instances found for plugin " + pluginId);
-        }
-
+        DataPlugin dataPlugin = pluginMapper.selectById(dataPluginInstance.getPluginId());
         // 3. Check if container already exists
-        String containerName = "plugin-" + pluginId;
+        String containerName = "plugin-" +dataPlugin.getId()+"-"+ pluginInstanceId;
         try {
             InspectContainerResponse existingContainer = dockerClient.inspectContainerCmd(containerName).exec();
             if (existingContainer.getState().getRunning()) {
@@ -86,27 +83,27 @@ public class PluginContainerManagerImpl implements PluginContainerManager {
         try {
             // 4. Build instances configuration JSON
             Map<String, Map<String, Object>> instancesConfig = new HashMap<>();
-            for (DataPluginInstance instance : instances) {
-                instancesConfig.put(instance.getName(), instance.getConfig());
-            }
+
             String instancesConfigJson = objectMapper.writeValueAsString(instancesConfig);
 
             // 5. Create container
-            ExposedPort exposedPort = new ExposedPort(8080);
-            Ports bindings = new Ports();
-            bindings.bind(exposedPort, Ports.Binding.empty());
+            Integer port = (Integer) dataPluginInstance.getConfig().get("SERVER_PORT");
+            ExposedPort exposedPort = new ExposedPort(port);
 
-            CreateContainerResponse response = dockerClient.createContainerCmd(plugin.getImageName())
+            CreateContainerCmd cmd = dockerClient.createContainerCmd(dataPlugin.getDockerImageId())
                     .withName(containerName)
-                    .withEnv("INSTANCES_CONFIG=" + instancesConfigJson)
-                    .withEnv("LOG_TYPE=plugin")
                     .withExposedPorts(exposedPort)
-                    .withHostConfig(com.github.dockerjava.api.model.HostConfig.newHostConfig()
-                            .withPortBindings(bindings)
-                            .withBinds(Bind.parse("/var/log/taskm:/var/log/taskm:rw"))
-                            .withRestartPolicy(RestartPolicy.onFailureRestart(3))
-                    )
-                    .exec();
+                    .withHostConfig(com.github.dockerjava.api.model.HostConfig.newHostConfig())
+                    .withRestartPolicy(RestartPolicy.onFailureRestart(3));
+
+            List<String> envs = new ArrayList<>();
+            for(Map.Entry<String,Object> entry:dataPluginInstance.getConfig().entrySet()){
+                String key = entry.getKey();
+                String value = entry.getValue().toString();
+                envs.add(key+"="+value);
+            }
+            cmd = cmd.withEnv(envs.toArray(new String[0]));
+            CreateContainerResponse response = cmd.exec();
 
             String containerId = response.getId();
             logger.info("Created container {} with ID {}", containerName, containerId);
@@ -116,17 +113,15 @@ public class PluginContainerManagerImpl implements PluginContainerManager {
             logger.info("Started container {}", containerName);
 
             // 7. Update instances with container ID and status
-            for (DataPluginInstance instance : instances) {
-                instance.setContainerId(containerId);
-                instance.setStatus("RUNNING");
-                instanceMapper.updateById(instance);
-            }
 
-            logger.info("Plugin {} container started successfully", pluginId);
+            dataPluginInstance.setContainerId(containerId);
+            dataPluginInstance.setStatus("RUNNING");
+            instanceMapper.updateById(dataPluginInstance);
+            logger.info("Plugin {} container started successfully", pluginInstanceId);
             return containerId;
 
         } catch (Exception e) {
-            logger.error("Failed to start container for plugin {}", pluginId, e);
+            logger.error("Failed to start container for plugin {}", pluginInstanceId, e);
             throw new RuntimeException("Failed to start container: " + e.getMessage(), e);
         }
     }
@@ -178,12 +173,12 @@ public class PluginContainerManagerImpl implements PluginContainerManager {
     @Override
     @Transactional
     public void restartPluginContainer(Long pluginId) {
-        logger.info("Restarting container for plugin {}", pluginId);
+        logger.info("Restarting container for plugin instance {}", pluginId);
 
         stopPluginContainer(pluginId);
         startPluginContainer(pluginId);
 
-        logger.info("Plugin {} container restarted successfully", pluginId);
+        logger.info("Plugin instance{} container restarted successfully", pluginId);
     }
 
     /**

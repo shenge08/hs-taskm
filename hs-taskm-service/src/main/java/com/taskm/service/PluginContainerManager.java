@@ -9,30 +9,30 @@ public interface PluginContainerManager {
     /**
      * Start a container for a plugin with all its instances.
      *
-     * @param pluginId the plugin ID
+     * @param pluginInstanceId the plugin ID
      * @return container ID
      */
-    String startPluginContainer(Long pluginId);
+    String startPluginContainer(Long pluginInstanceId);
 
     /**
      * Stop the container for a plugin.
      *
-     * @param pluginId the plugin ID
+     * @param pluginInstanceId the plugin ID
      */
-    void stopPluginContainer(Long pluginId);
+    void stopPluginContainer(Long pluginInstanceId);
 
     /**
      * Get the status of a plugin container.
      *
-     * @param pluginId the plugin ID
+     * @param pluginInstanceId the plugin ID
      * @return container status (RUNNING, STOPPED, NOT_FOUND)
      */
-    String getContainerStatus(Long pluginId);
+    String getContainerStatus(Long pluginInstanceId);
 
     /**
      * Restart a plugin container.
      *
-     * @param pluginId the plugin ID
+     * @param pluginInstanceId the plugin ID
      */
-    void restartPluginContainer(Long pluginId);
+    void restartPluginContainer(Long pluginInstanceId);
 }

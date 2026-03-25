@@ -1,7 +1,9 @@
 package com.taskm.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.taskm.handler.JsonArrayTypeHandler;
 import com.taskm.handler.JsonTypeHandler;
+import java.util.List;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -56,18 +58,24 @@ public class DataPlugin implements Serializable {
     private String imageName;
 
     /**
+     * Docker image id for this plugin.
+     * Format: "sadasdfasf"
+     */
+    private String dockerImageId;
+
+    /**
      * Configuration parameters (JSON).
      * Format: [{"name":"symbol","type":"string","default":"AAPL","required":true}]
      */
-    @TableField(typeHandler = JsonTypeHandler.class)
-    private Map<String, Object> configParameters;
+    @TableField(typeHandler = JsonArrayTypeHandler.class)
+    private List<Map<String, Object>> configParameters;
 
     /**
      * Plugin metadata (JSON).
      * Format: {"author":"name","version":"1.0","description":"Get stock quotes"}
      */
-    @TableField(typeHandler = JsonTypeHandler.class)
-    private Map<String, Object> metadata;
+    @TableField(typeHandler = JsonArrayTypeHandler.class)
+    private  List<Map<String, Object>>  metadata;
 
     /**
      * Creation timestamp.

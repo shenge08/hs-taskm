@@ -14,6 +14,9 @@ import com.taskm.mapper.DataPluginInstanceMapper;
 import com.taskm.mapper.DataPluginMapper;
 import com.taskm.mapper.TaskMapper;
 import com.taskm.service.PluginInstanceService;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.util.CollectionUtils;
 
 /**
  * Service implementation for plugin instance management.
@@ -66,7 +70,20 @@ public class PluginInstanceServiceImpl implements PluginInstanceService {
         instance.setPluginId(pluginId);
         instance.setName(dto.getName());
         instance.setIsDefault(dto.getIsDefault() != null ? dto.getIsDefault() : false);
-        instance.setConfig(dto.getConfig());
+        if(instance.getIsDefault()){
+            List<Map<String, Object>> metadata = plugin.getMetadata();
+            if(!CollectionUtils.isEmpty( metadata)){
+                Map<String,Object> config = new HashMap<>();
+                for (Map<String, Object> entry : metadata){
+                    config.put(entry.get("key").toString(), entry.get("defaultValue"));
+                }
+                instance.setConfig(config);
+            }
+        }else{
+            instance.setConfig(dto.getConfig());
+        }
+        instance.setCreatedAt(LocalDateTime.now());
+        instance.setUpdatedAt(LocalDateTime.now());
 
         instanceMapper.insert(instance);
 

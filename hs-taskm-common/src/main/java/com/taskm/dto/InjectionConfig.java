@@ -1,5 +1,6 @@
 package com.taskm.dto;
 
+import java.util.List;
 import lombok.Data;
 
 import java.util.Map;
@@ -44,12 +45,12 @@ public class InjectionConfig {
     /**
      * Plugin parameters (JSON).
      */
-    private Map<String, Object> pluginParams;
+    private List<Map<String, Object>> pluginParams;
 
     /**
      * Plugin metadata (JSON).
      */
-    private Map<String, Object> pluginMetadata;
+    private List<Map<String, Object>>  pluginMetadata;
 
     /**
      * Listener code (Base64 encoded).
@@ -59,10 +60,10 @@ public class InjectionConfig {
     /**
      * Listener parameters (JSON).
      */
-    private Map<String, Object> listenerParams;
+    private List<Map<String, Object>>  listenerParams;
 
     /**
      * Listener metadata (JSON).
      */
-    private Map<String, Object> listenerMetadata;
+    private List<Map<String, Object>> listenerMetadata;
 }

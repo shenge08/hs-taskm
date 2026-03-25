@@ -276,7 +276,7 @@ public final class Logger {
             return; // Skip logs below the configured level
         }
 
-        String timestamp = Instant.now().format(timeFormatter);
+        String timestamp = timeFormatter.format(Instant.now());
 
         if (format == Format.JSON) {
             // JSON format

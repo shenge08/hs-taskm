@@ -10,8 +10,8 @@
         <result column="plugin_type" property="pluginType" />
         <result column="language" property="language" />
         <result column="code" property="code" />
-        <result column="config_parameters" property="configParameters" typeHandler="com.taskm.handler.JsonTypeHandler" />
-        <result column="metadata" property="metadata" typeHandler="com.taskm.handler.JsonTypeHandler" />
+        <result column="config_parameters" property="configParameters" typeHandler="com.taskm.handler.JsonArrayTypeHandler" />
+        <result column="metadata" property="metadata" typeHandler="com.taskm.handler.JsonArrayTypeHandler" />
         <result column="created_at" property="createdAt" />
         <result column="updated_at" property="updatedAt" />
     </resultMap>

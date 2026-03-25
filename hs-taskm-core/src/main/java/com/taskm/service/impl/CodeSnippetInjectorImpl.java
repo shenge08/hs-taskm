@@ -12,6 +12,7 @@ import com.taskm.mapper.DataPluginMapper;
 import com.taskm.mapper.ListenerMapper;
 import com.taskm.mapper.TaskMapper;
 import com.taskm.service.CodeSnippetInjector;
+import java.util.ArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -118,8 +119,8 @@ public class CodeSnippetInjectorImpl implements CodeSnippetInjector {
 
             // Merge plugin parameters
             @SuppressWarnings("unchecked")
-            Map<String, Object> userPluginParams = (Map<String, Object>) taskParams.get("pluginParams");
-            Map<String, Object> mergedPluginParams = mergePluginParameters(plugin, userPluginParams);
+            List<Map<String, Object>> userPluginParams = (List<Map<String, Object>> ) taskParams.get("pluginParams");
+            List<Map<String, Object>>  mergedPluginParams = mergePluginParameters(plugin, userPluginParams);
             config.setPluginParams(mergedPluginParams);
 
             // Plugin metadata
@@ -137,8 +138,8 @@ public class CodeSnippetInjectorImpl implements CodeSnippetInjector {
 
             // Merge listener parameters
             @SuppressWarnings("unchecked")
-            Map<String, Object> userListenerParams = (Map<String, Object>) taskParams.get("listenerParams");
-            Map<String, Object> mergedListenerParams = mergeListenerParameters(listener, userListenerParams);
+            List<Map<String, Object>>userListenerParams = ( List<Map<String, Object>>) taskParams.get("listenerParams");
+            List<Map<String, Object>>  mergedListenerParams = mergeListenerParameters(listener, userListenerParams);
             config.setListenerParams(mergedListenerParams);
 
             // Listener metadata
@@ -226,29 +227,10 @@ public class CodeSnippetInjectorImpl implements CodeSnippetInjector {
      * User parameters override defaults.
      */
     @SuppressWarnings("unchecked")
-    private Map<String, Object> mergePluginParameters(DataPlugin plugin, Map<String, Object> userParams) {
-        Map<String, Object> merged = new HashMap<>();
+    private List<Map<String, Object>> mergePluginParameters(DataPlugin plugin, List<Map<String, Object>>  userParams) {
+        List<Map<String, Object>>  merged = new ArrayList<>();
 
-        // Get default parameters from plugin's configParameters
-        if (plugin.getConfigParameters() != null) {
-            Map<String, Object> configParams = plugin.getConfigParameters();
-            Object paramsObj = configParams.get("parameters");
-            if (paramsObj instanceof List) {
-                List<Map<String, Object>> paramDefs = (List<Map<String, Object>>) paramsObj;
-                for (Map<String, Object> paramDef : paramDefs) {
-                    String name = (String) paramDef.get("name");
-                    Object defaultValue = paramDef.get("default");
-                    if (defaultValue != null) {
-                        merged.put(name, defaultValue);
-                    }
-                }
-            }
-        }
-
-        // User parameters override defaults
-        if (userParams != null) {
-            merged.putAll(userParams);
-        }
+        // Get default parameters from plugin's configParameter
 
         return merged;
     }
@@ -257,18 +239,8 @@ public class CodeSnippetInjectorImpl implements CodeSnippetInjector {
      * Merge listener parameters with user parameters.
      * User parameters override defaults.
      */
-    private Map<String, Object> mergeListenerParameters(Listener listener, Map<String, Object> userParams) {
-        Map<String, Object> merged = new HashMap<>();
-
-        // Get default parameters from listener
-        if (listener.getParameterDefaults() != null) {
-            merged.putAll(listener.getParameterDefaults());
-        }
-
-        // User parameters override defaults
-        if (userParams != null) {
-            merged.putAll(userParams);
-        }
+    private  List<Map<String, Object>> mergeListenerParameters(Listener listener, List<Map<String, Object>>userParams) {
+        List<Map<String, Object>> merged = new ArrayList<>();
 
         return merged;
     }

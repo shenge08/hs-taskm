@@ -47,6 +47,8 @@ public class ListenerClient {
      * @param timeoutSeconds request timeout in seconds
      */
     public ListenerClient(String endpoint, Long taskId, int timeoutSeconds) {
+        // Determine endpoint from parameter or environment
+        String finalEndpoint;
         if (endpoint == null || endpoint.trim().isEmpty()) {
             String envEndpoint = System.getenv(ENV_ENDPOINT);
             if (envEndpoint == null || envEndpoint.trim().isEmpty()) {
@@ -55,13 +57,13 @@ public class ListenerClient {
                     "through " + ENV_ENDPOINT + " environment variable"
                 );
             }
-            this.endpoint = envEndpoint.trim();
+            finalEndpoint = envEndpoint.trim();
         } else {
-            this.endpoint = endpoint.trim();
+            finalEndpoint = endpoint.trim();
         }
 
         // Remove trailing slash
-        this.endpoint = this.endpoint.replaceAll("/$", "");
+        this.endpoint = finalEndpoint.replaceAll("/$", "");
 
         if (taskId == null) {
             String envTaskId = System.getenv(ENV_TASK_ID);
