@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # 期货移仓机器人
+  futures-roll-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: futures-roll-bot-taskm
+    restart: on-failure:3
+    environment:
+      # 必填的环境变量
+      - NEAR_SYMBOL=IM2606.CFE
+      - FAR_SYMBOL=IM2609.CFE
+      - TASK_ID=20260305000001
+      - TOTAL_QTY=10
+      - BATCH_COUNT=5
+      - MIN_SPREAD=20.0
+      - ALLOW_SLIPPAGE=1.0
+      - CHASE_PRICE_INCREMENT=1
+
+      # 可选的环境变量
+      - MAX_CHASE_ATTEMPTS=3
+      - CLOSE_WAIT_TIME=5
+      - OPEN_WAIT_TIME=5
+
+      # SDK 端点（由 TaskM 系统注入，这里用于本地测试）
+      - PLUGIN_ENDPOINT=http://mock-plugin:8080/api
+      - LISTENER_ENDPOINT=http://mock-listener:8080/api
+
+      # 日志级别
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=text
+
+    volumes:
+      # 挂载日志目录
+      - ./logs:/var/log/tasks
+
+    networks:
+      - taskm-network
+
+    # 健康检查依赖
+    healthcheck:
+      test: ["CMD", "sh", "-c", "ps aux | grep java | grep -v grep"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Mock 数据插件（用于本地测试）
+  mock-plugin:
+    image: mockserver/mockserver:latest
+    container_name: mock-plugin
+    ports:
+      - "1080:1080"
+    networks:
+      - taskm-network
+
+  # Mock 监听器（用于本地测试）
+  mock-listener:
+    image: mockserver/mockserver:latest
+    container_name: mock-listener
+    ports:
+      - "1081:1080"
+    networks:
+      - taskm-network
+
+networks:
+  taskm-network:
+    driver: bridge
+
+volumes:
+  logs:

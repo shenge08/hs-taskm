@@ -1,21 +1,19 @@
 package com.taskm.sdk;
 
-import java.time.Instant;
-import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
+import org.slf4j.LoggerFactory;
+
 import java.util.Map;
-import java.util.Objects;
 
 /**
- * Simple logger for TaskM strategy execution.
+ * Logger facade for TaskM SDK.
  *
- * <p>This logger provides convenient logging methods with automatic configuration
- * from environment variables. It supports both plain text and JSON logging.
+ * <p>This class provides a simple logging API that wraps SLF4J, the standard logging facade for Java.
+ * It supports structured logging with key-value pairs and reads log level from environment variables.</p>
  *
  * <h3>Environment variables:</h3>
  * <ul>
- *   <li>LOG_LEVEL: Logging level (DEBUG, INFO, WARNING, ERROR, default: INFO)</li>
- *   <li>LOG_FORMAT: Log format (text, json, default: text)</li>
+ *   <li>LOG_LEVEL: Logging level (TRACE, DEBUG, INFO, WARN, ERROR, default: INFO)</li>
+ *   <li>LOG_FORMAT: Log format (text, json, default: text) - Note: JSON format requires Logback config</li>
  * </ul>
  *
  * <h3>Example usage:</h3>
@@ -24,47 +22,19 @@ import java.util.Objects;
  *
  * Logger logger = new Logger("MyStrategy");
  * logger.info("Strategy started");
- * logger.debug("Processing data", "symbol", "BTC/USDT");
+ * logger.debug("Processing data", "symbol", "BTC/USDT", "price", 50000);
  * logger.error("Failed to execute", "error", exception.getMessage());
  * }</pre>
+ *
+ * <h3>Logback Configuration (in application):</h3>
+ * <p>Your application using this SDK should provide a Logback configuration file
+ * (logback.xml or logback-spring.xml) to control log output format and destination.</p>
  *
  * @since 1.0.0
  */
 public final class Logger {
 
-    /**
-     * Log level enumeration.
-     */
-    public enum Level {
-        DEBUG(0),
-        INFO(1),
-        WARNING(2),
-        ERROR(3),
-        CRITICAL(4);
-
-        private final int value;
-
-        Level(int value) {
-            this.value = value;
-        }
-
-        public int getValue() {
-            return value;
-        }
-    }
-
-    /**
-     * Log format enumeration.
-     */
-    public enum Format {
-        TEXT,
-        JSON
-    }
-
-    private final String name;
-    private final Level level;
-    private final Format format;
-    private final DateTimeFormatter timeFormatter;
+    private final org.slf4j.Logger slf4jLogger;
 
     /**
      * Create a new logger with the given name.
@@ -72,50 +42,10 @@ public final class Logger {
      * @param name the logger name (usually strategy or component name)
      */
     public Logger(String name) {
-        this(name, null, null);
-    }
-
-    /**
-     * Create a new logger with the given name and level.
-     *
-     * @param name the logger name
-     * @param level the log level (if null, reads from LOG_LEVEL env var)
-     */
-    public Logger(String name, Level level) {
-        this(name, level, null);
-    }
-
-    /**
-     * Create a new logger with the given name, level, and format.
-     *
-     * @param name the logger name
-     * @param level the log level (if null, reads from LOG_LEVEL env var)
-     * @param format the log format (if null, reads from LOG_FORMAT env var)
-     */
-    public Logger(String name, Level level, Format format) {
         if (name == null || name.isEmpty()) {
             throw new IllegalArgumentException("Logger name cannot be null or empty");
         }
-
-        this.name = name;
-
-        // Determine level from parameter or environment
-        if (level == null) {
-            String levelStr = Environment.get("LOG_LEVEL", "INFO").toUpperCase();
-            this.level = parseLevel(levelStr);
-        } else {
-            this.level = level;
-        }
-
-        // Determine format from parameter or environment
-        if (format == null) {
-            String formatStr = Environment.get("LOG_FORMAT", "text").toLowerCase();
-            this.format = "json".equals(formatStr) ? Format.JSON : Format.TEXT;
-        } else {
-            this.format = format;
-        }
-
-        this.timeFormatter = DateTimeFormatter.ISO_INSTANT;
+        this.slf4jLogger = LoggerFactory.getLogger(name);
     }
 
     /**
@@ -124,7 +54,9 @@ public final class Logger {
      * @param message the log message
      */
     public void debug(String message) {
-        log(Level.DEBUG, message, null);
+        if (slf4jLogger.isDebugEnabled()) {
+            slf4jLogger.debug(message);
+        }
     }
 
     /**
@@ -135,7 +67,9 @@ public final class Logger {
      * @param value a data value
      */
     public void debug(String message, String key, Object value) {
-        log(Level.DEBUG, message, Map.of(key, value));
+        if (slf4jLogger.isDebugEnabled()) {
+            slf4jLogger.debug(formatMessage(message, key, value));
+        }
     }
 
     /**
@@ -145,7 +79,9 @@ public final class Logger {
      * @param data additional data as key-value pairs
      */
     public void debug(String message, Map<String, Object> data) {
-        log(Level.DEBUG, message, data);
+        if (slf4jLogger.isDebugEnabled()) {
+            slf4jLogger.debug(formatMessage(message, data));
+        }
     }
 
     /**
@@ -154,7 +90,9 @@ public final class Logger {
      * @param message the log message
      */
     public void info(String message) {
-        log(Level.INFO, message, null);
+        if (slf4jLogger.isInfoEnabled()) {
+            slf4jLogger.info(message);
+        }
     }
 
     /**
@@ -165,7 +103,9 @@ public final class Logger {
      * @param value a data value
      */
     public void info(String message, String key, Object value) {
-        log(Level.INFO, message, Map.of(key, value));
+        if (slf4jLogger.isInfoEnabled()) {
+            slf4jLogger.info(formatMessage(message, key, value));
+        }
     }
 
     /**
@@ -175,7 +115,9 @@ public final class Logger {
      * @param data additional data as key-value pairs
      */
     public void info(String message, Map<String, Object> data) {
-        log(Level.INFO, message, data);
+        if (slf4jLogger.isInfoEnabled()) {
+            slf4jLogger.info(formatMessage(message, data));
+        }
     }
 
     /**
@@ -184,7 +126,9 @@ public final class Logger {
      * @param message the log message
      */
     public void warning(String message) {
-        log(Level.WARNING, message, null);
+        if (slf4jLogger.isWarnEnabled()) {
+            slf4jLogger.warn(message);
+        }
     }
 
     /**
@@ -195,7 +139,9 @@ public final class Logger {
      * @param value a data value
      */
     public void warning(String message, String key, Object value) {
-        log(Level.WARNING, message, Map.of(key, value));
+        if (slf4jLogger.isWarnEnabled()) {
+            slf4jLogger.warn(formatMessage(message, key, value));
+        }
     }
 
     /**
@@ -205,7 +151,9 @@ public final class Logger {
      * @param data additional data as key-value pairs
      */
     public void warning(String message, Map<String, Object> data) {
-        log(Level.WARNING, message, data);
+        if (slf4jLogger.isWarnEnabled()) {
+            slf4jLogger.warn(formatMessage(message, data));
+        }
     }
 
     /**
@@ -214,7 +162,7 @@ public final class Logger {
      * @param message the log message
      */
     public void error(String message) {
-        log(Level.ERROR, message, null);
+        slf4jLogger.error(message);
     }
 
     /**
@@ -225,7 +173,7 @@ public final class Logger {
      * @param value a data value
      */
     public void error(String message, String key, Object value) {
-        log(Level.ERROR, message, Map.of(key, value));
+        slf4jLogger.error(formatMessage(message, key, value));
     }
 
     /**
@@ -235,133 +183,79 @@ public final class Logger {
      * @param data additional data as key-value pairs
      */
     public void error(String message, Map<String, Object> data) {
-        log(Level.ERROR, message, data);
+        slf4jLogger.error(formatMessage(message, data));
     }
 
     /**
-     * Log a critical message.
+     * Log an error message with exception.
      *
      * @param message the log message
+     * @param throwable the exception
      */
-    public void critical(String message) {
-        log(Level.CRITICAL, message, null);
+    public void error(String message, Throwable throwable) {
+        slf4jLogger.error(message, throwable);
     }
 
     /**
-     * Log a critical message with additional data.
+     * Log an error message with exception and additional data.
      *
      * @param message the log message
-     * @param key a data key
-     * @param value a data value
-     */
-    public void critical(String message, String key, Object value) {
-        log(Level.CRITICAL, message, Map.of(key, value));
-    }
-
-    /**
-     * Log a critical message with additional data.
-     *
-     * @param message the log message
+     * @param throwable the exception
      * @param data additional data as key-value pairs
      */
-    public void critical(String message, Map<String, Object> data) {
-        log(Level.CRITICAL, message, data);
+    public void error(String message, Throwable throwable, Map<String, Object> data) {
+        slf4jLogger.error(formatMessage(message, data), throwable);
     }
 
     /**
-     * Internal logging method.
+     * Check if debug logging is enabled.
+     *
+     * @return true if debug logging is enabled
      */
-    private void log(Level level, String message, Map<String, Object> data) {
-        if (level.getValue() < this.level.getValue()) {
-            return; // Skip logs below the configured level
-        }
-
-        String timestamp = timeFormatter.format(Instant.now());
-
-        if (format == Format.JSON) {
-            // JSON format
-            Map<String, Object> logEntry = new HashMap<>();
-            logEntry.put("timestamp", timestamp);
-            logEntry.put("logger", name);
-            logEntry.put("level", level.name());
-            logEntry.put("message", message);
-            if (data != null && !data.isEmpty()) {
-                logEntry.put("data", data);
-            }
-            System.out.println(toJson(logEntry));
-
-        } else {
-            // Text format
-            StringBuilder sb = new StringBuilder();
-            sb.append(timestamp).append(" - ");
-            sb.append(name).append(" - ");
-            sb.append(level.name()).append(" - ");
-            sb.append(message);
-
-            if (data != null && !data.isEmpty()) {
-                sb.append(" ").append(data);
-            }
-
-            System.out.println(sb.toString());
-        }
+    public boolean isDebugEnabled() {
+        return slf4jLogger.isDebugEnabled();
     }
 
     /**
-     * Convert map to simple JSON string.
+     * Check if info logging is enabled.
+     *
+     * @return true if info logging is enabled
      */
-    private String toJson(Map<String, Object> map) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("{");
+    public boolean isInfoEnabled() {
+        return slf4jLogger.isInfoEnabled();
+    }
+
+    /**
+     * Format message with key-value pair.
+     */
+    private String formatMessage(String message, String key, Object value) {
+        return message + " [" + key + "=" + value + "]";
+    }
+
+    /**
+     * Format message with data map.
+     */
+    private String formatMessage(String message, Map<String, Object> data) {
+        if (data == null || data.isEmpty()) {
+            return message;
+        }
+
+        StringBuilder sb = new StringBuilder(message);
+        sb.append(" ");
 
         boolean first = true;
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
+        for (Map.Entry<String, Object> entry : data.entrySet()) {
             if (!first) {
                 sb.append(", ");
             }
             first = false;
 
-            sb.append("\"").append(entry.getKey()).append("\": ");
-
-            Object value = entry.getValue();
-            if (value == null) {
-                sb.append("null");
-            } else if (value instanceof String) {
-                sb.append("\"").append(escapeJson((String) value)).append("\"");
-            } else if (value instanceof Number) {
-                sb.append(value);
-            } else if (value instanceof Boolean) {
-                sb.append(value);
-            } else if (value instanceof Map) {
-                sb.append(toJson((Map<String, Object>) value));
-            } else {
-                sb.append("\"").append(escapeJson(value.toString())).append("\"");
-            }
+            sb.append(entry.getKey())
+              .append("=")
+              .append(entry.getValue());
         }
 
-        sb.append("}");
         return sb.toString();
-    }
-
-    /**
-     * Escape special characters in JSON string.
-     */
-    private String escapeJson(String s) {
-        return s.replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t");
-    }
-
-    /**
-     * Parse level string to Level enum.
-     */
-    private Level parseLevel(String levelStr) {
-        try {
-            return Level.valueOf(levelStr.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return Level.INFO; // Default to INFO if invalid
-        }
     }
 
     /**

@@ -92,16 +92,14 @@ public class ListenerContainerManagerImpl implements ListenerContainerManager {
 
         try {
             // 4. Create container
-            ExposedPort exposedPort = new ExposedPort(8080);
-            Ports bindings = new Ports();
-            bindings.bind(exposedPort, Ports.Binding.empty());
+            Integer port = (Integer) listenerInstance.getConfig().get("SERVER_PORT");
+            ExposedPort exposedPort = new ExposedPort(port);
 
             CreateContainerCmd cmd = dockerClient.createContainerCmd(listener.getImageName())
                     .withName(containerName)
                     .withEnv("LOG_TYPE=listener")
                     .withExposedPorts(exposedPort)
                     .withHostConfig(com.github.dockerjava.api.model.HostConfig.newHostConfig()
-                            .withPortBindings(bindings)
                             .withBinds(Bind.parse("/var/log/taskm:/var/log/taskm:rw"))
                             .withRestartPolicy(RestartPolicy.onFailureRestart(3))
                     );

@@ -62,21 +62,21 @@ public class Listener implements Serializable {
      * Parameters definition (JSON).
      * Format: [{"name":"recipients","type":"array","default":["admin@example.com"],"required":true}]
      */
-    @TableField(typeHandler = JsonTypeHandler.class)
-    private Map<String, Object> parameters;
+    @TableField(typeHandler = JsonArrayTypeHandler.class)
+    private  List<Map<String, Object>>  parameters;
 
     /**
      * Parameter default values (JSON).
      * Format: {"recipients":["admin@example.com"],"subject":"Trade signal notification"}
      */
-    @TableField(typeHandler = JsonArrayTypeHandler.class)
-    private List<Map<String, Object>> parameterDefaults;
+    @TableField(typeHandler = JsonTypeHandler.class)
+    private Map<String, Object>parameterDefaults;
 
     /**
      * Listener metadata (JSON).
      * Format: {"author":"name","version":"1.0","description":"Send notifications"}
      */
-    @TableField(typeHandler = JsonArrayTypeHandler.class)
+    @TableField(typeHandler = JsonTypeHandler.class)
     private List<Map<String, Object>> metadata;
 
     /**
@@ -95,4 +95,11 @@ public class Listener implements Serializable {
      */
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
+
+
+    /**
+     * Docker image id for this plugin.
+     * Format: "sadasdfasf"
+     */
+    private String dockerImageId;
 }

@@ -181,7 +181,7 @@ public class ListenerClient {
                     .build();
 
                 // Get response body as string
-                return client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+                return client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString()).body();
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

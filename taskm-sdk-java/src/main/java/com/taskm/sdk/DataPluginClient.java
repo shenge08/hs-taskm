@@ -34,6 +34,13 @@ public class DataPluginClient {
     }
 
     /**
+     * Default constructor that reads endpoint from PLUGIN_ENDPOINT environment variable.
+     */
+    public DataPluginClient() {
+        this(null);
+    }
+
+    /**
      * Creates a new DataPluginClient with the specified endpoint and timeout.
      *
      * @param endpoint the base URL of the plugin instance API

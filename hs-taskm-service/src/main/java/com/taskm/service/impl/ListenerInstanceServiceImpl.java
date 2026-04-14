@@ -14,6 +14,8 @@ import com.taskm.mapper.ListenerInstanceMapper;
 import com.taskm.mapper.ListenerMapper;
 import com.taskm.mapper.TaskMapper;
 import com.taskm.service.ListenerInstanceService;
+import java.time.LocalDateTime;
+import java.util.Map;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -66,7 +68,14 @@ public class ListenerInstanceServiceImpl implements ListenerInstanceService {
         instance.setListenerId(listenerId);
         instance.setName(dto.getName());
         instance.setIsDefault(dto.getIsDefault() != null ? dto.getIsDefault() : false);
-        instance.setConfig(dto.getConfig());
+        if (instance.getIsDefault()){
+            Map<String, Object> parameterDefaults = listener.getParameterDefaults();
+            instance.setConfig(parameterDefaults);
+        }else{
+            instance.setConfig(dto.getConfig());
+        }
+        instance.setCreatedAt(LocalDateTime.now());
+        instance.setUpdatedAt(LocalDateTime.now());
 
         instanceMapper.insert(instance);
 
